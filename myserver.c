@@ -181,7 +181,7 @@ void not_started(struct list_clients *cl)
 
 void started(struct banker *bank)
 {
-  const char string[]="\nThe game started!\n";
+  const char string[]="\nThe game started!@\n";
   bank->state=game_on;
   write_to_all(bank, string);
   write_inv_to_all(bank);
@@ -706,7 +706,7 @@ struct list_clients *delete_client(struct banker *bank, int num_del)
   *prev_cl=(**prev_cl).next;
   discon_cl(del_cl->fd);
   free(del_cl);
-  sprintf(string, "\nPlayer %d left the game!\n", num_del);
+  sprintf(string, "\nPlayer ^%d left the game!\n", num_del);
   write_to_all(bank, string);
   bank->cur_cl--;
   return *prev_cl;
@@ -730,7 +730,7 @@ void handle_clients(struct banker *bank, fd_set *readfds)
         check_winner(bank);
         del=1;
       } else
-      if (cl->buf[last_sym+1]=='\n') {
+      if ((cl->buf[last_sym+1]=='\n') || (cl->buf[last_sym]=='\n')) {
         cl->buf[last_sym]='\0';
         if (bank->state==game_on) change_value(cl, bank);
         else not_started(cl);
