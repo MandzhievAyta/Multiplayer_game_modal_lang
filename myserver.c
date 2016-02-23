@@ -495,7 +495,7 @@ void player(struct list_clients *cl, int arg1, struct banker *bank)
       break;
   }
   if (inf_cl) {
-    sprintf(string, "Information about player %d:\n", arg1);
+    sprintf(string, "Information about player *%d:\n", arg1);
     write(cl->fd, string, strlen(string));
     sprintf(string, "Amount of money:\n#%d\n", inf_cl->mon);
     write(cl->fd, string, strlen(string));
@@ -514,7 +514,7 @@ void player(struct list_clients *cl, int arg1, struct banker *bank)
     else sprintf(string, "Yes\n");
     write(cl->fd, string, strlen(string));
   } else {
-    sprintf(string, "Can not find this player!\n");
+    sprintf(string, "Can not find this player!^\n");
     write(cl->fd, string, strlen(string));
   }
   write_inv(cl->fd, cl->num);
@@ -706,7 +706,7 @@ struct list_clients *delete_client(struct banker *bank, int num_del)
   *prev_cl=(**prev_cl).next;
   discon_cl(del_cl->fd);
   free(del_cl);
-  sprintf(string, "\nPlayer ^%d left the game!\n", num_del);
+  sprintf(string, "\nPlayer %d left the game!\n", num_del);
   write_to_all(bank, string);
   bank->cur_cl--;
   return *prev_cl;
@@ -720,11 +720,11 @@ void handle_clients(struct banker *bank, fd_set *readfds)
     if (FD_ISSET(cl->fd, readfds)) {
       len=read(cl->fd, cl->buf+cl->cur_size, sizeof(cl->buf)-cl->cur_size);
       cl->cur_size+=len-2;
-      if (cl->cur_size==sizeof(cl->buf)) {
+      if (cl->cur_size+2==sizeof(cl->buf)) {
         cl->cur_size=0;
       }
       last_sym=cl->cur_size;
-      if (cl->buf[last_sym+1]==0) {
+      if (len==0) {
         cl=delete_client(bank, cl->num);
         write_inv_to_all(bank);
         check_winner(bank);
@@ -969,7 +969,7 @@ void chk_comis(struct banker *bank)
 
 void auction_started(struct banker *bank)
 {
-  const char string[]="\nAuction started!\n";
+  const char string[]="\nAuction started!%\n";
   struct list_clients *cl=bank->cl;
   while (cl) {
     write(cl->fd, string, sizeof(string)-1);
