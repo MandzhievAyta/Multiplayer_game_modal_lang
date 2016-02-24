@@ -98,8 +98,7 @@ void WaitAuction(int sockfd)
   char buf[buf_size], str[str_size];
   int len, i;
   bool chk = false;
-  sleep(2);
-  sprintf(str, "turn\r\n");
+  sprintf(str, "turn\n");
   write(sockfd, str, strlen(str));
   do {
     len = read(sockfd, buf, sizeof(buf));
@@ -125,7 +124,7 @@ bool ReadMarket(int sockfd, struct InfoMarket &market)
   char buf[buf_size];
   int m[7];
   int len, i, num = 0;
-  const char str[]="market\r\n";
+  const char str[]="market\n";
   write(sockfd, str, strlen(str));
   do {
     len = read(sockfd, buf, sizeof(buf));
@@ -154,7 +153,7 @@ void PrintMarket(struct InfoMarket &market)
 
 bool WhoAmI(int sockfd, struct InfoMarket &market)
 {
-  const char str[] = "player\r\n";
+  const char str[] = "player\n";
   char buf[buf_size];
   int len, i;
   bool chk = false;
@@ -188,7 +187,7 @@ bool ReadPlayers(int sockfd, struct InfoMarket &market)
   char str[str_size], buf[buf_size];
   bool leaved;
   for (i=1; (i <= market.max_cl) && (len); i++) {
-    sprintf(str, "player %d\r\n", i);
+    sprintf(str, "player %d\n", i);
     write(sockfd, str, strlen(str));
     leaved = false;
     num = 0;
@@ -230,11 +229,11 @@ void PrintPlayers(struct InfoMarket &market)
 void SetAppl(int sockfd, struct InfoMarket &market)
 {
   char str[str_size];
-  sprintf(str, "buy 2 %d\r\n", market.min_p);
+  sprintf(str, "buy 2 %d\n", market.min_p);
   write(sockfd, str, strlen(str));
-  sprintf(str, "sell 2 %d\r\n", market.max_p);
+  sprintf(str, "sell 2 %d\n", market.max_p);
   write(sockfd, str, strlen(str));
-  sprintf(str, "prod 2\r\n");
+  sprintf(str, "prod 2\n");
   write(sockfd, str, strlen(str));
 }
 

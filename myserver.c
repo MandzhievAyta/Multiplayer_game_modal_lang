@@ -667,11 +667,11 @@ void turn(struct list_clients *cl)
   write_inv(cl->fd, cl->num);
 }
 
-void change_value(struct list_clients *cl, struct banker *bank)
+void change_value(char *str, struct list_clients *cl, struct banker *bank)
 {
   char cmd[sizeof(cl->buf)];
   int em, arg1, arg2;
-  em=sscanf(cl->buf, "%s %d %d", cmd, &arg1, &arg2);
+  em=sscanf(str, "%s %d %d", cmd, &arg1, &arg2);
   if (em==1) arg1=0;
   if ((!strcmp(cmd, "market")) && (em==1))
     market(cl, bank);
@@ -712,30 +712,42 @@ struct list_clients *delete_client(struct banker *bank, int num_del)
   return *prev_cl;
 }
 
+int check_buf(struct list_clients *cl, char *str)
+{
+  int i, lastsym=-1;
+  for (i=0; (i<cl->cur_size) && (lastsym==-1); i++)
+    if (cl->buf[i]=='\n') lastsym=i;
+  if (lastsym==-1) return 0;
+  memcpy(str, cl->buf, lastsym+1);
+  if (str[lastsym-1]=='\r') str[lastsym-1]='\0';
+  else str[lastsym]='\0';
+  memmove(cl->buf, cl->buf+lastsym+1, cl->cur_size-lastsym-1);
+  cl->cur_size=cl->cur_size-lastsym-1;
+  return 1;
+}
+
 void handle_clients(struct banker *bank, fd_set *readfds)
 {
-  int len, last_sym, del=0;
+  char str[cl_buf_size];
+  int len, del=0;
   struct list_clients *cl=bank->cl;
   while (cl) {
     if (FD_ISSET(cl->fd, readfds)) {
       len=read(cl->fd, cl->buf+cl->cur_size, sizeof(cl->buf)-cl->cur_size);
-      cl->cur_size+=len-2;
-      if (cl->cur_size+2==sizeof(cl->buf)) {
-        cl->cur_size=0;
-      }
-      last_sym=cl->cur_size;
+      cl->cur_size+=len;
       if (len==0) {
         cl=delete_client(bank, cl->num);
         write_inv_to_all(bank);
         check_winner(bank);
         del=1;
       } else
-      if ((cl->buf[last_sym+1]=='\n') || (cl->buf[last_sym]=='\n')) {
-        cl->buf[last_sym]='\0';
-        if (bank->state==game_on) change_value(cl, bank);
+      while (check_buf(cl, str)) {
+        if (bank->state==game_on) change_value(str, cl, bank);
         else not_started(cl);
-        cl->cur_size=0;
       }
+    }
+    if ((!del) && (cl->cur_size==sizeof(cl->buf))) {
+      cl->cur_size=0;
     }
     if (!del) cl=cl->next;
     del=0;
@@ -806,10 +818,11 @@ void print_arr(struct banker *bank)
   }
 }
 
-int chk_month(struct banker *bank)
+int chk_turns(struct banker *bank)
 {
   int i=0;
   struct list_clients *cl=bank->cl;
+  if (cl==NULL) return 0;
   while (cl) {
     if ((cl->turn==1) && (cl->state==play)) i++;
     cl=cl->next;
@@ -1016,7 +1029,7 @@ int main(int argc, char **argv)
       select_err(&readfds, max_d);
       accept_client(&bank, &readfds, ls);
       handle_clients(&bank, &readfds);
-      if (chk_month(&bank)) auction(&bank);
+      if (chk_turns(&bank)) auction(&bank);
     }
   }
   return 0;
