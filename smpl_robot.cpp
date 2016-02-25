@@ -45,6 +45,11 @@ int SocketErr()
   return sockfd;
 }
 
+void CheckExcep(int len)
+{
+  if (len == 0) throw "Connection was closed\n";
+}
+
 void ReadIpPort(char *ip, char *port)
 {
   printf("Enter host's ip and port:");
@@ -87,10 +92,11 @@ void WaitStart(int sockfd)
   bool chk = false;
   do {
     len = read(sockfd, buf, sizeof(buf));
-    for (i=0; (i<len) && (len) && (!chk); i++ ) {
+    CheckExcep(len);
+    for (i=0; (i<len) && (!chk); i++ ) {
       if (buf[i] == '@') chk = true;
     }
-  } while((!chk) && (len != 0));
+  } while(!chk);
 }
 
 void WaitAuction(int sockfd)
@@ -102,10 +108,11 @@ void WaitAuction(int sockfd)
   write(sockfd, str, strlen(str));
   do {
     len = read(sockfd, buf, sizeof(buf));
-    for (i=0; (i<len) && (len) && (!chk); i++ ) {
+    CheckExcep(len);
+    for (i=0; (i<len) && (!chk); i++ ) {
       if (buf[i] == '%') chk = true;
     }
-  } while((!chk) && (len != 0));
+  } while(!chk);
 }
 
 void FillMarket(struct InfoMarket &market, int *m)
@@ -119,25 +126,23 @@ void FillMarket(struct InfoMarket &market, int *m)
   market.cur_cl = m[6];
 }
 
-bool ReadMarket(int sockfd, struct InfoMarket &market)
+void ReadMarket(int sockfd, struct InfoMarket &market)
 {
   char buf[buf_size];
-  int m[7];
-  int len, i, num = 0;
+  int i, num = 0, len, m[7];
   const char str[]="market\n";
   write(sockfd, str, strlen(str));
   do {
     len = read(sockfd, buf, sizeof(buf));
-    for(i=0; (i<len) && (len) && (num<7); i++) {
+    CheckExcep(len);
+    for(i=0; (i<len) && (num<7); i++) {
       if (buf[i] == '#') {
-       sscanf(buf+i+1, "%d", &(m[num]));
-       num++;
+        sscanf(buf+i+1, "%d", &(m[num]));
+        num++;
       }
     }
-  } while((num < 7) && (len != 0));
-  if (len == 0) return true;
+  } while(num < 7);
   FillMarket(market, m);
-  return false;
 }
 
 void PrintMarket(struct InfoMarket &market)
@@ -151,23 +156,23 @@ void PrintMarket(struct InfoMarket &market)
   printf("The number of active players:\n#%d\n", market.cur_cl);
 }
 
-bool WhoAmI(int sockfd, struct InfoMarket &market)
+void WhoAmI(int sockfd, struct InfoMarket &market)
 {
   const char str[] = "player\n";
   char buf[buf_size];
-  int len, i;
+  int i, len;
   bool chk = false;
   write(sockfd, str, strlen(str));
   do {
     len = read(sockfd, buf, sizeof(buf));
-    for (i=0; (i<len) && (len) && (!chk); i++ ) {
+    CheckExcep(len);
+    for (i=0; (i<len) && (!chk); i++ ) {
       if (buf[i] == '*') {
         chk = true;
         sscanf(buf+i+1, "%d", &(market.me));
       }
     }
-  } while((!chk) && (len != 0));
-  return (!len);
+  } while(!chk);
 }
 
 void FillPlayer(struct InfoMarket &market, int *m, int indx)
@@ -181,19 +186,20 @@ void FillPlayer(struct InfoMarket &market, int *m, int indx)
   market.players[indx-1].b_fact = m[4];
 }
 
-bool ReadPlayers(int sockfd, struct InfoMarket &market)
+void ReadPlayers(int sockfd, struct InfoMarket &market)
 {
-  int i, j, len = 1, num, m[5];
+  int i, j, len, num, m[5];
   char str[str_size], buf[buf_size];
   bool leaved;
-  for (i=1; (i <= market.max_cl) && (len); i++) {
+  for (i=1; i <= market.max_cl; i++) {
     sprintf(str, "player %d\n", i);
     write(sockfd, str, strlen(str));
     leaved = false;
     num = 0;
     do {
       len = read(sockfd, buf, sizeof(buf));
-      for(j=0; (j<len) && (!leaved) && (len) && (num<5); j++) {
+      CheckExcep(len);
+      for(j=0; (j<len) && (!leaved) && (num<5); j++) {
         if (buf[j] == '#') {
          sscanf(buf+j+1, "%d", &(m[num]));
          num++;
@@ -203,10 +209,9 @@ bool ReadPlayers(int sockfd, struct InfoMarket &market)
           leaved = true;
         }
       }
-    } while((num < 5) && (!leaved) && (len != 0));
-    if ((!leaved) && len) FillPlayer(market, m, i);
+    } while((num < 5) && (!leaved));
+    if (!leaved) FillPlayer(market, m, i);
   }
-  return (!len);
 }
 
 void PrintPlayers(struct InfoMarket &market)
@@ -239,25 +244,27 @@ void SetAppl(int sockfd, struct InfoMarket &market)
 int main(int argc, char **argv)
 {
   int sockfd;
-  bool end = false;
   struct InfoMarket market;
   sockfd = SocketErr();
   Connection(sockfd);
-  WaitStart(sockfd);
-  end = ReadMarket(sockfd, market);
-  if (end) return 0;
-  market.players =
-    (struct InfoPlayer *)malloc(sizeof(struct InfoPlayer)*market.cur_cl);
-  market.max_cl = market.cur_cl;
-  end = WhoAmI(sockfd, market);
-  while (!end) {
-    PrintMarket(market);
-    end = ReadPlayers(sockfd, market);
-    if (end) return 0;
-    PrintPlayers(market);
-    SetAppl(sockfd, market);
-    WaitAuction(sockfd);
-    end = ReadMarket(sockfd, market);
+  try {
+    WaitStart(sockfd);
+    ReadMarket(sockfd, market);
+    market.players =
+      (struct InfoPlayer *)malloc(sizeof(struct InfoPlayer)*market.cur_cl);
+    market.max_cl = market.cur_cl;
+    WhoAmI(sockfd, market);
+    for(;;) {
+      PrintMarket(market);
+      ReadPlayers(sockfd, market);
+      PrintPlayers(market);
+      SetAppl(sockfd, market);
+      WaitAuction(sockfd);
+      ReadMarket(sockfd, market);
+    }
+  }
+  catch(const char *str) {
+    printf(str);
   }
   return 0;
 }

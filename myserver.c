@@ -283,8 +283,8 @@ void null_sell_buy(struct banker *bank)
 void write_winner(struct banker *bank, struct list_clients *cl)
 {
   char string[30];
-  if (cl) sprintf(string, "\nPlayer %d won!\n", cl->num);
-  else sprintf(string, "\nAll players became bankrupts\n");
+  if (cl) sprintf(string, "\nPlayer ~%d won!\n", cl->num);
+  else sprintf(string, "\nAll players became bankrupts|\n");
   write_to_all(bank, string);
 }
 
@@ -426,32 +426,6 @@ void accept_client(struct banker *bank, fd_set *readfds, int ls)
     }
   }
 }
-/*
-void movestr(char *string, int amnt)
-{
-  int i=0;
-  while (string[i]!='\0') {
-    string[i]=string[i+amnt];
-    i++;
-  }
-}
-
-void delete_extra_spaces(struct list_clients *cl)
-{
-  int i=0;
-  while (cl->buf[0]==' ') {
-    movestr(cl->buf, 1);
-  }
-  while (cl->buf[i]!='\0') {
-    if ((cl->buf[i]==' ') && (cl->buf[i+1]==' ')) {
-      movestr(cl->buf+i, 1);
-    } else {
-      i++;
-    }
-  }
-  if (cl->buf[i-1]==' ') cl->buf[i-1]='\0';
-}
-*/
 void market(struct list_clients *cl, struct banker *bank)
 {
   char string[100];
