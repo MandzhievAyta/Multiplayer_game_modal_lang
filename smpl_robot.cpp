@@ -212,15 +212,14 @@ bool ReadPlayers(int sockfd, struct InfoMarket &market)
 void PrintPlayers(struct InfoMarket &market)
 {
   int i;
-  char str[str_size];
   for (i=0; i<market.max_cl; i++) {
     if (market.players[i].state == 1) {
-      printf(str, "Information about player *%d:\n", i+1);
-      printf(str, "Amount of money:\n#%d\n", market.players[i].mon);
-      printf(str, "Amount of row:\n#%d\n", market.players[i].row);
-      printf(str, "Amount of products:\n#%d\n", market.players[i].prod);
-      printf(str, "Amount of factories:\n#%d\n", market.players[i].fact);
-      printf(str, "Amount of factories under constructions:\n#%d\n",
+      printf("Information about player *%d:\n", i+1);
+      printf("Amount of money:\n#%d\n", market.players[i].mon);
+      printf("Amount of row:\n#%d\n", market.players[i].row);
+      printf("Amount of products:\n#%d\n", market.players[i].prod);
+      printf("Amount of factories:\n#%d\n", market.players[i].fact);
+      printf("Amount of factories under constructions:\n#%d\n",
              market.players[i].b_fact);
     }
   }

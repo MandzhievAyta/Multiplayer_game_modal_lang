@@ -799,7 +799,7 @@ void print_arr(struct banker *bank)
   struct list_clients *cl=bank->cl;
   while (cl) {
     i=0;
-    while (bank->sell[i].state==1) {
+    while ((bank->sell[i].state==1) && (i<bank->max_cl)) {
       sprintf(string ,"Player %d wants to sell %d products for %d\n",
               (*bank).sell[i].cl->num, bank->sell[i].amnt, bank->sell[i].price);
       write(cl->fd, string, strlen(string));
@@ -807,7 +807,7 @@ void print_arr(struct banker *bank)
       i++;
     }
     i=0;
-    while (bank->buy[i].state==1) {
+    while ((bank->buy[i].state==1) && (i<bank->max_cl)) {
       sprintf(string, "Player %d wants to buy %d rows for %d\n",
               (*bank).buy[i].cl->num, bank->buy[i].amnt, bank->buy[i].price);
       write(cl->fd, string, strlen(string));
