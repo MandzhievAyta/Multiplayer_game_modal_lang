@@ -283,7 +283,7 @@ void null_sell_buy(struct banker *bank)
 void write_winner(struct banker *bank, struct list_clients *cl)
 {
   char string[30];
-  if (cl) sprintf(string, "\nPlayer ~%d won!\n", cl->num);
+  if (cl) sprintf(string, "\nPlayer `%d won!\n", cl->num);
   else sprintf(string, "\nAll players became bankrupts|\n");
   write_to_all(bank, string);
 }
@@ -324,7 +324,7 @@ void write_bought(struct banker *bank, struct sell_buy sell, int amnt)
 {
   char string[100];
   struct list_clients *all_cl=bank->cl;
-  sprintf(string, "Bank sold %d rows to Player %d for %d\n",
+  sprintf(string, "Bank sold #%d rows to Player #%d for #%d\n",
           amnt, sell.cl->num, sell.price);
   while (all_cl) {
     write(all_cl->fd, string, strlen(string));
@@ -367,7 +367,7 @@ void write_sold(struct banker *bank, struct sell_buy buy, int amnt)
 {
   char string[100];
   struct list_clients *all_cl=bank->cl;
-  sprintf(string, "Bank bought %d products from Player %d for %d\n",
+  sprintf(string, "Bank bought ~%d products from Player ~%d for ~%d\n",
           amnt, buy.cl->num, buy.price);
   while (all_cl) {
     write(all_cl->fd, string, strlen(string));
@@ -959,7 +959,17 @@ void auction_started(struct banker *bank)
   const char string[]="\nAuction started!%\n";
   struct list_clients *cl=bank->cl;
   while (cl) {
-    write(cl->fd, string, sizeof(string)-1);
+    write(cl->fd, string, strlen(string));
+    cl=cl->next;
+  }
+}
+
+void auction_finished(struct banker *bank)
+{
+  const char string[]="Auction finished!%\n";
+  struct list_clients *cl=bank->cl;
+  while (cl) {
+    write(cl->fd, string, strlen(string));
     cl=cl->next;
   }
 }
@@ -974,9 +984,11 @@ void auction(struct banker *bank)
   print_arr(bank);
   handle_buy(bank);
   handle_sell(bank);
+  auction_finished(bank);
   null_sell_buy(bank);
   chk_comis(bank);
-  change_level(bank, random_lev);
+  if (bank->cl != NULL) change_level(bank, random_lev);
+  else change_level(bank, third_level);
   cl=bank->cl;
   while (cl) {
     write_inv(cl->fd, cl->num);
