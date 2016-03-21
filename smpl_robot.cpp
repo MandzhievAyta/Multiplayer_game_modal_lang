@@ -11,6 +11,30 @@
 enum {buf_size = 4096, str_size = 1024};
 enum {find_info_auct = 0, info_auct_beg = 1, info_auct_end = 2};
 enum {sold_mode = '#', bought_mode = '~'};
+enum {start_sym = '@', auct_bord_sym = '%', info_sym = '#', win_sym = '|'};
+
+class Exception {
+  enum {len = 2048};
+  char str[len];
+  int winner;
+public:
+  Exception(char *buf, int size, char bor_sym);
+  void PrintException() const {printf(str);}
+};
+
+Exception::Exception(char *buf, int size, char detector)
+{
+  int i;
+  winner = 0;
+  for (i = 0; i<size; i++) {
+    if (buf[i] == detector) {
+      sscanf(buf+i+1, "%d", &winner);
+      break;
+    }
+  }
+  if (winner != 0) sprintf(str, "You won!\n");
+  else sprintf(str, "You lose!\n");
+}
 
 struct InfoBet {
   int state;
@@ -56,17 +80,6 @@ int SocketErr()
   return sockfd;
 }
 
-void CheckExcep(int len)
-{
-  if (len == 0) throw "Connection was closed\n";
-}
-
-void ReadIpPort(char *ip, char *port)
-{
-  printf("Enter host's ip and port:");
-  scanf("%20s %6s", ip, port);
-}
-
 bool FillAddr(struct sockaddr_in &addr, char *ip, char *port)
 {
   addr.sin_family = AF_INET;
@@ -78,13 +91,11 @@ bool FillAddr(struct sockaddr_in &addr, char *ip, char *port)
   } else return true;
 }
 
-void Connection(int sockfd)
+void Connection(int sockfd, char *ip, char *port)
 {
   struct sockaddr_in addr;
   bool chk;
-  char ip[str_size], port[str_size];
   do {
-    ReadIpPort(ip, port);
     chk = FillAddr(addr, ip, port);
     if (chk) {
       if (0 != connect(sockfd, (struct sockaddr *)&addr, sizeof(addr))) {
@@ -103,9 +114,9 @@ void WaitStart(int sockfd)
   bool chk = false;
   do {
     len = read(sockfd, buf, sizeof(buf));
-    CheckExcep(len);
+    if (len == 0) throw Exception(buf, buf_size, win_sym);
     for (i=0; (i<len) && (!chk); i++ ) {
-      if (buf[i] == '@') chk = true;
+      if (buf[i] == start_sym) chk = true;
     }
   } while(!chk);
 }
@@ -152,10 +163,10 @@ void WaitReadAuction(int sockfd, InfoMarket &market)
   write(sockfd, str, strlen(str));
   do {
     lenbuf = read(sockfd, buf + cur_size, sizeof(buf) - cur_size);
-    CheckExcep(lenbuf);
     cur_size += lenbuf;
+    if (lenbuf == 0) throw Exception(buf, buf_size, win_sym);
     for (i = cur_size - lenbuf; i < cur_size; i++) {
-      if (buf[i] == '%') {
+      if (buf[i] == auct_bord_sym) {
         if (chk == find_info_auct) {
           chk = info_auct_beg;
           beg = i+1;
@@ -190,9 +201,9 @@ void ReadMarket(int sockfd, InfoMarket &market)
   write(sockfd, str, strlen(str));
   do {
     len = read(sockfd, buf, sizeof(buf));
-    CheckExcep(len);
+    if (len == 0) throw Exception(buf, buf_size, win_sym);
     for(i = 0; (i < len) && (num < 7); i++) {
-      if (buf[i] == '#') {
+      if (buf[i] == info_sym) {
         sscanf(buf+i+1, "%d", &m[num]);
         num++;
       }
@@ -203,13 +214,9 @@ void ReadMarket(int sockfd, InfoMarket &market)
 
 void PrintMarket(InfoMarket &market)
 {
-  printf("Current market level:\n%d\n", market.lev);
-  printf("Current month:\n%d\n", market.mnth);
-  printf("The amount of sold raw:\n%d\n", market.row);
-  printf("The minimum price per row:\n%d\n", market.min_price);
-  printf("The amount of purchased product:\n%d\n", market.prod);
-  printf("The maximum price per product:\n%d\n", market.max_price);
-  printf("The number of active players:\n%d\n", market.cur_cl);
+  printf("Market: %5d %5d %5d %5d %5d %5d %5d\n", market.lev, market.mnth,
+         market.row, market.min_price, market.prod, market.max_price,
+         market.cur_cl);
 }
 
 void WhoAmI(int sockfd, InfoMarket &market)
@@ -221,7 +228,7 @@ void WhoAmI(int sockfd, InfoMarket &market)
   write(sockfd, str, strlen(str));
   do {
     len = read(sockfd, buf, sizeof(buf));
-    CheckExcep(len);
+    if (len == 0) throw Exception(buf, buf_size, win_sym);
     for (i = 0; (i < len) && (!chk); i++) {
       if (buf[i] == '*') {
         chk = true;
@@ -254,9 +261,9 @@ void ReadPlayers(int sockfd, InfoMarket &market)
     num = 0;
     do {
       len = read(sockfd, buf, sizeof(buf));
-      CheckExcep(len);
+      if (len == 0) throw Exception(buf, buf_size, win_sym);
       for(j = 0; (j < len) && (!leaved) && (num < 5); j++) {
-        if (buf[j] == '#') {
+        if (buf[j] == info_sym) {
          sscanf(buf+j+1, "%d", &m[num]);
          num++;
         }
@@ -275,13 +282,15 @@ void PrintPlayers(InfoMarket &market)
   int i;
   for (i = 0; i < market.max_cl; i++) {
     if (market.players[i].state == 1) {
-      printf("Information about player %d:\n", i+1);
-      printf("Amount of money:\n%d\n", market.players[i].mon);
-      printf("Amount of row:\n%d\n", market.players[i].row);
-      printf("Amount of products:\n%d\n", market.players[i].prod);
-      printf("Amount of factories:\n%d\n", market.players[i].fact);
-      printf("Amount of factories under constructions:\n%d\n",
-             market.players[i].b_fact);
+      if (i+1 == market.me) {
+        printf("You: %11d %5d %5d %5d %5d \n", market.players[i].mon,
+                market.players[i].row, market.players[i].prod,
+                market.players[i].fact, market.players[i].b_fact);
+      } else {
+        printf("Player %d: %6d %5d %5d %5d %5d \n", i+1, market.players[i].mon,
+                market.players[i].row, market.players[i].prod,
+                market.players[i].fact, market.players[i].b_fact);
+      }
     }
   }
 }
@@ -290,6 +299,7 @@ void PrintAuction(InfoMarket &market)
 {
   int i;
   InfoBet *bet;
+  printf("Auction:\n");
   for (i = 0; (i < market.max_cl) && (market.sold[i].state == 1); i++) {
     bet = &market.sold[i];
     printf("Bank sold %d rows to Player %d for %d\n",
@@ -324,7 +334,7 @@ int main(int argc, char **argv)
   int sockfd;
   InfoMarket market;
   sockfd = SocketErr();
-  Connection(sockfd);
+  Connection(sockfd, argv[1], argv[2]);
   try {
     WaitStart(sockfd);
     ReadMarket(sockfd, market);
@@ -332,6 +342,7 @@ int main(int argc, char **argv)
     market.max_cl = market.cur_cl;
     CreateInfoBet(market);
     WhoAmI(sockfd, market);
+    printf("You are player %d\n", market.me);
     for(;;) {
       PrintMarket(market);
       ReadPlayers(sockfd, market);
@@ -342,8 +353,8 @@ int main(int argc, char **argv)
       ReadMarket(sockfd, market);
     }
   }
-  catch(const char *str) {
-    printf(str);
+  catch(const Exception &e) {
+    e.PrintException();
   }
   return 0;
 }

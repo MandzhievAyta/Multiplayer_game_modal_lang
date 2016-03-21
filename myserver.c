@@ -283,8 +283,8 @@ void null_sell_buy(struct banker *bank)
 void write_winner(struct banker *bank, struct list_clients *cl)
 {
   char string[30];
-  if (cl) sprintf(string, "\nPlayer `%d won!\n", cl->num);
-  else sprintf(string, "\nAll players became bankrupts|\n");
+  if (cl) sprintf(string, "\nPlayer |%d won!\n", cl->num);
+  else sprintf(string, "\nAll players became bankrupts\n");
   write_to_all(bank, string);
 }
 
