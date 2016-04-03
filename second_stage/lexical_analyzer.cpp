@@ -3,54 +3,6 @@
 #include <cstring>
 
 enum { divider, identificator, key_word, number, const_string };
-enum { amnt_div = 23, amnt_words = 10 };
-
-const char *words[amnt_words] = { "if", "then", "else", "print", "buy",
-                                  "sell", "prod", "build", "endturn", "while" };
-const char *dividers[amnt_div] = { "+", "-", "*", "/", "%", "<", ">", "=", ">=",
-                                   "<=", "<>", "&", "|", "!", "(", ")", "[",
-                                   "]", "{", "}", ";", ":=", "," };
-
-bool IsDivider(const char *str) {
-  bool check = false;
-  int i;
-  for(i = 0; (i<amnt_div) && (!check); i++) {
-    if (!strcmp(str, dividers[i]))
-      check = true;
-  }
-  return check;
-}
-
-bool IsKeyWord(const char *str)
-{
-  bool check = false;
-  int i;
-  for(i = 0; (i<amnt_words) && (!check); i++) {
-    if (!strcmp(str, words[i]))
-      check = true;
-  }
-  return check;
-}
-
-bool CheckSpaceSymbol(char sym)
-{
-  if ((sym ==  '\n') || (sym ==  ' ') || (sym ==  '\t') || (sym ==  '\r'))
-    return true;
-  else
-    return false;
-}
-
-bool CheckDividerSymbol(char sym)
-{
-  if ((sym ==  '+') || (sym ==  '-') || (sym ==  '*') || (sym ==  '/') ||
-      (sym ==  '%') || (sym ==  '<') || (sym ==  '>') || (sym ==  '=') ||
-      (sym ==  '&') || (sym ==  '|') || (sym ==  '!') || (sym ==  '(') ||
-      (sym ==  ')') || (sym ==  '[') || (sym ==  ']') || (sym ==  '{') ||
-      (sym ==  '}') || (sym ==  ';') || (sym ==  ':') || (sym ==  ','))
-    return true;
-  else
-    return false;
-}
 
 template <class T>
 class List {
@@ -62,12 +14,15 @@ private:
   };
   Node *first;
   Node *last;
+  Node *cur;
   List(const List<T> &);
   void operator=(const List<T> &);
 public:
   List(): first(NULL), last(NULL) {}
   ~List();
   void Append(const T &object);
+  void StartIter() { cur = first; }
+  T *GetNext();
 };
 
 template <class T>
@@ -95,6 +50,17 @@ void List<T>::Append(const T &object)
   last->value = object;
 }
 
+template <class T>
+T *List<T>::GetNext()
+{
+  List<T>::Node *tmp;
+  if (!cur)
+    return NULL;
+  tmp = cur;
+  cur = cur->next;
+  return &(tmp->value);
+}
+
 class Lexeme {
 private:
   char *lex;
@@ -106,8 +72,9 @@ public:
   Lexeme(const char *l, int type, int line);
   ~Lexeme();
   void operator=(const Lexeme &);
-  const char *GetString() { return lex; }
-  int GetType() { return lex_type; }
+  const char *GetString() const { return lex; }
+  int GetType() const { return lex_type; }
+  int GetLineNum() const { return line_num; }
 };
 
 Lexeme::Lexeme(const Lexeme &src)
@@ -134,10 +101,12 @@ Lexeme::~Lexeme()
 
 void Lexeme::operator=(const Lexeme &src)
 {
-  lex = new char[strlen(src.lex)+1];
-  strcpy(lex, src.lex);
-  lex_type = src.lex_type;
-  line_num = src.line_num;
+  if (this != &src) {
+    lex = new char[strlen(src.lex)+1];
+    strcpy(lex, src.lex);
+    lex_type = src.lex_type;
+    line_num = src.line_num;
+  }
 }
 
 class Automatic {
@@ -152,6 +121,12 @@ private:
   char prev_sym;
   int prev_sym_state;
   int line_number;
+  static const char *words[];
+  static const char *dividers[];
+  bool IsDivider(const char *);
+  bool IsKeyWord(const char *);
+  bool CheckSpaceSymbol(char);
+  bool CheckDividerSymbol(char);
   void SwitchToError(char);
   Lexeme *HandleDividers(char, int);
   Lexeme *Begin(char);
@@ -165,14 +140,75 @@ private:
 public:
   Automatic();
   Lexeme *FeedChar(char);
+  const char *IsError();
 };
+
+const char *Automatic::words[] = { "if", "then", "else", "print", "buy","sell",
+                                   "prod", "build", "endturn", "while", NULL };
+const char *Automatic::dividers[] = { "+", "-", "*", "/", "%", "<", ">",
+                                      "=", ">=", "<=", "<>", "&", "|", "!",
+                                      "(", ")", "[", "]", "{", "}", ";",
+                                      ":=", ",", NULL };
+
+bool Automatic::IsDivider(const char *str) {
+  bool check = false;
+  int i;
+  for(i = 0; (dividers[i] != NULL) && (!check); i++) {
+    if (!strcmp(str, dividers[i]))
+      check = true;
+  }
+  return check;
+}
+
+bool Automatic::IsKeyWord(const char *str)
+{
+  bool check = false;
+  int i;
+  for(i = 0; (words[i] != NULL) && (!check); i++) {
+    if (!strcmp(str, words[i]))
+      check = true;
+  }
+  return check;
+}
+
+bool Automatic::CheckSpaceSymbol(char sym)
+{
+  if ((sym ==  '\n') || (sym ==  ' ') || (sym ==  '\t') || (sym ==  '\r'))
+    return true;
+  else
+    return false;
+}
+
+bool Automatic::CheckDividerSymbol(char sym)
+{
+  if ((sym ==  '+') || (sym ==  '-') || (sym ==  '*') || (sym ==  '/') ||
+      (sym ==  '%') || (sym ==  '<') || (sym ==  '>') || (sym ==  '=') ||
+      (sym ==  '&') || (sym ==  '|') || (sym ==  '!') || (sym ==  '(') ||
+      (sym ==  ')') || (sym ==  '[') || (sym ==  ']') || (sym ==  '{') ||
+      (sym ==  '}') || (sym ==  ';') || (sym ==  ':') || (sym ==  ','))
+    return true;
+  else
+    return false;
+}
 
 void Automatic::SwitchToError(char sym)
 {
-  state = err_state;
+  char *str = new char[buf_cur_size + 2];
   buf[buf_cur_size] = sym;
   buf[buf_cur_size+1] = '\0';
   buf_cur_size += 2;
+  strcpy(str, buf);
+  sprintf(buf, "Error occurred in line %d: '%s'", line_number, str);
+  state = err_state;
+}
+
+const char *Automatic::IsError()
+{
+  if (state == beg_state)
+    return NULL;
+  if (state == str_state)
+    sprintf(buf, "Unmatched quotes in the end");
+  return buf;
 }
 
 Lexeme *Automatic::HandleDividers(char sym, int type)
@@ -225,7 +261,7 @@ Lexeme *Automatic::Number(char sym)
 Lexeme *Automatic::Identificator(char sym)
 {
   if ((sym >= '0' && sym <= '9') || (sym >= 'a' && sym <= 'z') ||
-      (sym >= 'A' && sym <= 'Z')) {
+      (sym >= 'A' && sym <= 'Z') || (sym == '[') || (sym == ']')) {
     buf[buf_cur_size] = sym;
     buf_cur_size++;
   } else if (CheckDividerSymbol(sym) || CheckSpaceSymbol(sym)) {
@@ -267,6 +303,7 @@ Lexeme *Automatic::String(char sym)
   }
   return NULL;
 }
+
 Lexeme *Automatic::Divider(char sym)
 {
   Lexeme *p = NULL;
@@ -335,8 +372,6 @@ Lexeme *Automatic::FeedChar(char sym)
   char tmp;
   bool this_step = false;
   Lexeme *p = NULL;
-  if (sym == '\n')
-    line_number++;
   if (prev_sym_state == have_prev_sym) {
     tmp = prev_sym;
     this_step = true;
@@ -352,6 +387,8 @@ Lexeme *Automatic::FeedChar(char sym)
     }
   } while(this_step);
   if (p) buf_cur_size = 0;
+  if (sym == '\n')
+    line_number++;
   return p;
 }
 
@@ -366,23 +403,52 @@ FILE *OpenFile(const char *path)
   return file_in;
 }
 
+void PrintListLexeme(List<Lexeme> &list)
+{
+  Lexeme *lex;
+  list.StartIter();
+  lex = list.GetNext();
+  while (lex) {
+    printf("line: %d, type: %d, %s\n", lex->GetLineNum(), lex->GetType(),
+           lex->GetString());
+    lex = list.GetNext();
+  }
+}
+
+void CheckError(Automatic &machine)
+{
+  const char *err;
+  err = machine.IsError();
+  if (err)
+    printf(err);
+  else
+    printf("Correct!");
+  putchar('\n');
+}
+
+void HandleNextLexeme(List<Lexeme> &list, Lexeme *lex)
+{
+  if (lex) {
+    list.Append(*lex);
+    delete lex;
+  }
+}
+
 int main(int argc, char **argv) {
   char current_sym;
   FILE *file_in;
-  Automatic machine1;
+  Automatic machine;
   Lexeme *lex = NULL;
   List<Lexeme> list_lex;
 
   file_in = OpenFile(argv[1]);
   while ((current_sym = fgetc(file_in)) != EOF) {
-    if (lex)
-      delete lex;
-//    printf("%c\n", current_sym);
-    lex = machine1.FeedChar(current_sym);
-    if (lex) {
-      list_lex.Append(*lex);
-      printf("%s %d\n", (*lex).GetString(), (*lex).GetType());
-    }
+    lex = machine.FeedChar(current_sym);
+    HandleNextLexeme(list_lex, lex);
   }
+  lex = machine.FeedChar(' ');
+  HandleNextLexeme(list_lex, lex);
+  PrintListLexeme(list_lex);
+  CheckError(machine);
   return 0;
 }
