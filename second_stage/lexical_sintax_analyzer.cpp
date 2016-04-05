@@ -145,7 +145,7 @@ public:
 
 const char *Automatic::words[] = { "if", "then", "else", "print", "buy","sell",
                                    "prod", "build", "endturn", "while", NULL };
-const char *Automatic::dividers[] = { "+", "-", "*", "/", "%", "<", ">",
+const char *Automatic::dividers[] = { "+", "-", "*", "/", "<", ">",
                                       "=", ">=", "<=", "<>", "&", "|", "!",
                                       "(", ")", "[", "]", "{", "}", ";",
                                       ":=", ",", NULL };
@@ -230,6 +230,8 @@ Lexeme *Automatic::Begin(char sym)
     buf_cur_size++;
   } else if ((sym == '?') || (sym == '$')) {
     state = ident_state;
+    buf[buf_cur_size] = sym;
+    buf_cur_size++;
   } else if ((sym >= 'a') && (sym <= 'z')) {
     state = keywrd_state;
     buf[buf_cur_size] = sym;
@@ -261,7 +263,7 @@ Lexeme *Automatic::Number(char sym)
 Lexeme *Automatic::Identificator(char sym)
 {
   if ((sym >= '0' && sym <= '9') || (sym >= 'a' && sym <= 'z') ||
-      (sym >= 'A' && sym <= 'Z') || (sym == '[') || (sym == ']')) {
+      (sym >= 'A' && sym <= 'Z')) {
     buf[buf_cur_size] = sym;
     buf_cur_size++;
   } else if (CheckDividerSymbol(sym) || CheckSpaceSymbol(sym)) {
@@ -392,6 +394,259 @@ Lexeme *Automatic::FeedChar(char sym)
   return p;
 }
 
+class Exception {
+private:
+  enum { str_size = 1024 };
+  char str[str_size];
+public:
+  Exception(const char *err_str, const char *lex, int line) {
+    strcpy(str, err_str);
+    sprintf(str + strlen(str), " in line %d: '%s'", line, lex);
+  }
+  Exception(const char *str1) { strcpy(str, str1); }
+  const char *ErrorString() { return str; }
+};
+
+class SyntaxAnalyzer {
+private:
+  Lexeme *cur_lex;
+  List<Lexeme> &list;
+  void Next() { cur_lex = list.GetNext(); }
+  void NextNotNull();
+  void CheckLexeme(const char *, const char *);
+  void Program();
+  void Block();
+  void HandleKeyWords();
+  void Line();
+  void Expr();
+  void Ari1();
+  void Ari2();
+  void Ari3();
+  void PrintArg();
+  void Variable();
+public:
+  SyntaxAnalyzer(List<Lexeme> &l1): list(l1) { list.StartIter(); }
+  void Check() { Program(); }
+};
+
+void SyntaxAnalyzer::NextNotNull()
+{
+  Next();
+  if (!cur_lex)
+    throw Exception("Unexpected end of program in last line");
+}
+void SyntaxAnalyzer::CheckLexeme(const char *lex, const char *excep_info)
+{
+  if (strcmp(cur_lex->GetString(), lex))
+    throw Exception(excep_info, cur_lex->GetString(),
+                    cur_lex->GetLineNum());
+  else
+    NextNotNull();
+}
+
+void SyntaxAnalyzer::Program()
+{
+#if defined(PRINT_MODE)
+  printf("<Program>->");
+#endif
+  try {
+    NextNotNull();
+    Line();
+    while (!strcmp(cur_lex->GetString(), ";")) {
+      Next();
+      if (!cur_lex)
+        break;
+      Line();
+    }
+    if (cur_lex != NULL)
+      throw Exception("Missed ';'", cur_lex->GetString(),
+                      cur_lex->GetLineNum());
+    printf("Syntax analyzer correct");
+  }
+  catch (Exception &e) {
+    printf(e.ErrorString());
+  }
+  putchar('\n');
+}
+
+void SyntaxAnalyzer::Block()
+{
+#if defined(PRINT_MODE)
+  printf("<Block>->");
+#endif
+  CheckLexeme("{", "Missed '{' in block");
+  Line();
+  while (!strcmp(cur_lex->GetString(), ";")) {
+    NextNotNull();
+    if (!strcmp("}", cur_lex->GetString()))
+      break;
+    Line();
+  }
+  CheckLexeme("}", "Missed } in block");
+}
+
+void SyntaxAnalyzer::HandleKeyWords()
+{
+  if (!strcmp("print", cur_lex->GetString())) {
+    NextNotNull();
+    CheckLexeme("(", "Missed '(' after 'print'");
+    PrintArg();
+    while (!strcmp(cur_lex->GetString(), ",")) {
+      NextNotNull();
+      PrintArg();
+    }
+    CheckLexeme(")", "Missed ')' after 'print'");
+  } else if (!strcmp("buy", cur_lex->GetString()) ||
+             !strcmp("sell", cur_lex->GetString())) {
+    NextNotNull();
+    Expr();
+    Expr();
+  } else if (!strcmp("build", cur_lex->GetString()) ||
+             !strcmp("prod", cur_lex->GetString())) {
+    NextNotNull();
+    Expr();
+  } else if (!strcmp("endturn", cur_lex->GetString()))
+    NextNotNull();
+}
+
+void SyntaxAnalyzer::Line()
+{
+#if defined(PRINT_MODE)
+  printf("<Line>->");
+#endif
+  if ((cur_lex->GetType() == identificator) &&
+      (cur_lex->GetString()[0] == '$')) {
+    Variable();
+    CheckLexeme(":=", "Should be assignment");
+    Expr();
+  } else if (!strcmp("if", cur_lex->GetString())) {
+    NextNotNull();
+    Expr();
+    Line();
+    if (!strcmp("else", cur_lex->GetString())) {
+      NextNotNull();
+      Line();
+    }
+  } else if (!strcmp("while", cur_lex->GetString())) {
+    NextNotNull();
+    CheckLexeme("(", "Missed '(' after 'while'");
+    Expr();
+    CheckLexeme(")", "Missed ')' after 'while'");
+    Line();
+  } else if (!strcmp("{", cur_lex->GetString())) {
+    Block();
+  } else if (cur_lex->GetType() == key_word) {
+    HandleKeyWords();
+  } else
+    throw Exception("Wrong line", cur_lex->GetString(),
+                    cur_lex->GetLineNum());
+}
+
+void SyntaxAnalyzer::Expr()
+{
+#if defined(PRINT_MODE)
+  printf("<Expr>->");
+#endif
+  Ari1();
+  if (!strcmp(">", cur_lex->GetString()) ||
+      !strcmp("<", cur_lex->GetString()) ||
+      !strcmp("<>", cur_lex->GetString()) ||
+      !strcmp(">=", cur_lex->GetString()) ||
+      !strcmp("<=", cur_lex->GetString()) ||
+      !strcmp("==", cur_lex->GetString())) {
+    NextNotNull();
+    Ari1();
+  }
+}
+
+void SyntaxAnalyzer::Ari1()
+{
+#if defined(PRINT_MODE)
+  printf("<Ari1>->");
+#endif
+  Ari2();
+  while (!strcmp("+", cur_lex->GetString()) ||
+         !strcmp("-", cur_lex->GetString()) ||
+         !strcmp("|", cur_lex->GetString())) {
+    NextNotNull();
+    Ari2();
+  }
+}
+
+void SyntaxAnalyzer::Ari2()
+{
+#if defined(PRINT_MODE)
+  printf("<Ari2>->");
+#endif
+  Ari3();
+  while (!strcmp("*", cur_lex->GetString()) ||
+         !strcmp("/", cur_lex->GetString()) ||
+         !strcmp("&", cur_lex->GetString())) {
+    NextNotNull();
+    Ari3();
+  }
+}
+
+void SyntaxAnalyzer::Ari3()
+{
+#if defined(PRINT_MODE)
+  printf("<Ari3>->");
+#endif
+  if (cur_lex->GetString()[0] == '$') {
+    Variable();
+  } else if (cur_lex->GetString()[0] == '?') {
+    NextNotNull();
+    CheckLexeme("(", "Missed '(' after '?function'");
+    if (strcmp(")", cur_lex->GetString())) {
+      Expr();
+      while (!strcmp(",", cur_lex->GetString())) {
+        NextNotNull();
+        Expr();
+      }
+    }
+    CheckLexeme(")", "Missed ')' after '?function'");
+  } else if (cur_lex->GetType() == number) {
+    NextNotNull();
+  } else if (!strcmp("!", cur_lex->GetString())) {
+    NextNotNull();
+    Ari3();
+  } else if (!strcmp("(", cur_lex->GetString())) {
+    NextNotNull();
+    Expr();
+    CheckLexeme(")", "Missed ')' after expression");
+  } else
+    throw Exception("Wrong arithmetic member", cur_lex->GetString(),
+                    cur_lex->GetLineNum());
+}
+
+void SyntaxAnalyzer::PrintArg()
+{
+#if defined(PRINT_MODE)
+  printf("<PrintArg>->");
+#endif
+  if (cur_lex->GetType() == const_string) {
+    NextNotNull();
+  } else
+    Expr();
+}
+
+void SyntaxAnalyzer::Variable()
+{
+#if defined(PRINT_MODE)
+  printf("<Variable>->");
+#endif
+  if (cur_lex->GetString()[0] == '$') {
+    NextNotNull();
+    if (!strcmp("[", cur_lex->GetString())) {
+      NextNotNull();
+      Expr();
+      CheckLexeme("]", "Missed ']' after array");
+    }
+  } else
+    throw Exception("Wrong variable", cur_lex->GetString(),
+                    cur_lex->GetLineNum());
+}
+
 FILE *OpenFile(const char *path)
 {
   FILE *file_in;
@@ -438,6 +693,7 @@ int main(int argc, char **argv) {
   char current_sym;
   FILE *file_in;
   Automatic machine;
+  SyntaxAnalyzer *syntax;
   Lexeme *lex = NULL;
   List<Lexeme> list_lex;
 
@@ -448,7 +704,11 @@ int main(int argc, char **argv) {
   }
   lex = machine.FeedChar(' ');
   HandleNextLexeme(list_lex, lex);
+#if defined(PRINT_MODE)
   PrintListLexeme(list_lex);
+#endif
   CheckError(machine);
+  syntax = new SyntaxAnalyzer(list_lex);
+  syntax->Check();
   return 0;
 }

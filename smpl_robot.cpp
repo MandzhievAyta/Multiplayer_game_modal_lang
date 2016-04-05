@@ -8,10 +8,10 @@
 #include <string.h>
 
 
-enum {buf_size = 4096, str_size = 1024};
-enum {find_info_auct = 0, info_auct_beg = 1, info_auct_end = 2};
-enum {sold_mode = '#', bought_mode = '~'};
-enum {start_sym = '@', auct_bord_sym = '%', info_sym = '#', win_sym = '|'};
+enum { buf_size = 4096, str_size = 1024 };
+enum { find_info_auct = 0, info_auct_beg = 1, info_auct_end = 2 };
+enum { sold_mode = '#', bought_mode = '~' };
+enum { start_sym = '@', auct_bord_sym = '%', info_sym = '#', win_sym = '|' };
 
 class Exception {
   enum {len = 2048};
@@ -32,8 +32,11 @@ Exception::Exception(char *buf, int size, char detector)
       break;
     }
   }
-  if (winner != 0) sprintf(str, "You won!\n");
-  else sprintf(str, "You lose!\n");
+  if (winner != 0) {
+    sprintf(str, "You won!\n");
+  } else {
+    sprintf(str, "You lose!\n");
+  }
 }
 
 struct InfoBet {
@@ -88,7 +91,8 @@ bool FillAddr(struct sockaddr_in &addr, char *ip, char *port)
     perror("inet_aton");
     printf("You entered wrong ip!\n");
     return false;
-  } else return true;
+  } else
+    return true;
 }
 
 void Connection(int sockfd, char *ip, char *port)
@@ -114,9 +118,13 @@ void WaitStart(int sockfd)
   bool chk = false;
   do {
     len = read(sockfd, buf, sizeof(buf));
-    if (len == 0) throw Exception(buf, buf_size, win_sym);
+    if (len == 0) {
+      throw Exception(buf, buf_size, win_sym);
+    }
     for (i=0; (i<len) && (!chk); i++ ) {
-      if (buf[i] == start_sym) chk = true;
+      if (buf[i] == start_sym) {
+        chk = true;
+      }
     }
   } while(!chk);
 }
@@ -124,7 +132,8 @@ void WaitStart(int sockfd)
 inline void NullBet(InfoBet *bet, int amnt)
 {
   int i;
-  for (i = 0; i < amnt; i++) bet[i].state = 0;
+  for (i = 0; i < amnt; i++)
+    bet[i].state = 0;
 }
 
 void FillBet(int *m, InfoBet &ar)
@@ -139,8 +148,11 @@ void ReadAuction(InfoMarket &market,const char *buf, int len, char mode)
 {
   int i, m[3], j = 0,  num = 0;
   InfoBet *bet;
-  if (mode == '#') bet = market.sold;
-  else bet = market.bought;
+  if (mode == '#') {
+    bet = market.sold;
+  } else {
+    bet = market.bought;
+  }
   NullBet(bet, market.max_cl);
   for (i = 0; i < len; i++){
     if (buf[i] == mode) {
@@ -164,7 +176,9 @@ void WaitReadAuction(int sockfd, InfoMarket &market)
   do {
     lenbuf = read(sockfd, buf + cur_size, sizeof(buf) - cur_size);
     cur_size += lenbuf;
-    if (lenbuf == 0) throw Exception(buf, buf_size, win_sym);
+    if (lenbuf == 0) {
+      throw Exception(buf, buf_size, win_sym);
+    }
     for (i = cur_size - lenbuf; i < cur_size; i++) {
       if (buf[i] == auct_bord_sym) {
         if (chk == find_info_auct) {
@@ -201,7 +215,9 @@ void ReadMarket(int sockfd, InfoMarket &market)
   write(sockfd, str, strlen(str));
   do {
     len = read(sockfd, buf, sizeof(buf));
-    if (len == 0) throw Exception(buf, buf_size, win_sym);
+    if (len == 0) {
+      throw Exception(buf, buf_size, win_sym);
+    }
     for(i = 0; (i < len) && (num < 7); i++) {
       if (buf[i] == info_sym) {
         sscanf(buf+i+1, "%d", &m[num]);
@@ -228,7 +244,9 @@ void WhoAmI(int sockfd, InfoMarket &market)
   write(sockfd, str, strlen(str));
   do {
     len = read(sockfd, buf, sizeof(buf));
-    if (len == 0) throw Exception(buf, buf_size, win_sym);
+    if (len == 0) {
+      throw Exception(buf, buf_size, win_sym);
+    }
     for (i = 0; (i < len) && (!chk); i++) {
       if (buf[i] == '*') {
         chk = true;
@@ -261,7 +279,9 @@ void ReadPlayers(int sockfd, InfoMarket &market)
     num = 0;
     do {
       len = read(sockfd, buf, sizeof(buf));
-      if (len == 0) throw Exception(buf, buf_size, win_sym);
+      if (len == 0) {
+        throw Exception(buf, buf_size, win_sym);
+      }
       for(j = 0; (j < len) && (!leaved) && (num < 5); j++) {
         if (buf[j] == info_sym) {
          sscanf(buf+j+1, "%d", &m[num]);
@@ -273,7 +293,9 @@ void ReadPlayers(int sockfd, InfoMarket &market)
         }
       }
     } while((num < 5) && (!leaved));
-    if (!leaved) FillPlayer(market, m, i);
+    if (!leaved) {
+      FillPlayer(market, m, i);
+    }
   }
 }
 
@@ -353,7 +375,7 @@ int main(int argc, char **argv)
       ReadMarket(sockfd, market);
     }
   }
-  catch(const Exception &e) {
+  catch (const Exception &e) {
     e.PrintException();
   }
   return 0;
