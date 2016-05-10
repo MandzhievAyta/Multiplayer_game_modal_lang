@@ -689,6 +689,7 @@ public:
       delete operand1;
       operand1 = local_stack.Pop();
     }
+    printf("\n");
     *cur_cmd = (*cur_cmd)->next;
   }
 };
@@ -1056,20 +1057,23 @@ private:
   void PrintArg();
   void Variable();
 public:
-  SyntaxAnalyzer(ListOfLexeme &l1): list(l1)
-  {
-    stack = new IpnElemStack;
-    ipn_list = new ListOfIpnItem;
-    list.StartIter();
-  }
+  SyntaxAnalyzer(ListOfLexeme &l1);
   ~SyntaxAnalyzer() { delete stack; }
-  ListOfIpnItem *Check(ListOfVar *a)
-  {
-    list_var = a;
-    Program();
-    return ipn_list;
-  }
+  ListOfIpnItem *Check(ListOfVar *a);
 };
+
+SyntaxAnalyzer::SyntaxAnalyzer(ListOfLexeme &l1): list(l1)
+{
+  stack = new IpnElemStack;
+  ipn_list = new ListOfIpnItem;
+  list.StartIter();
+}
+ListOfIpnItem *SyntaxAnalyzer::Check(ListOfVar *a)
+{
+  list_var = a;
+  Program();
+  return ipn_list;
+}
 
 void SyntaxAnalyzer::NextNotNull()
 {
