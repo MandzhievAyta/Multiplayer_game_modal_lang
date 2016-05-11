@@ -1,8 +1,9 @@
+#include "lexemes.h"
+#include "ipnclasses.h"
+#include "syntanalyzer.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "ipnclasses.h"
-#include "syntanalyzer.h"
 SyntaxAnalyzer::SyntaxAnalyzer(ListOfLexeme &l1): list(l1)
 {
   stack = new IpnElemStack;
@@ -48,12 +49,13 @@ void SyntaxAnalyzer::Program()
     if (cur_lex != NULL)
       throw SyntException("Missed ';'", cur_lex->GetString(),
                       cur_lex->GetLineNum());
+#if defined(PRINT_MODE)
     printf("Syntax analyzer correct");
+#endif
   }
   catch (SyntException &e) {
     printf(e.ErrorString());
   }
-  putchar('\n');
 }
 
 void SyntaxAnalyzer::Block()

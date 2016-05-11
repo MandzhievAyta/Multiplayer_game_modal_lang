@@ -5,6 +5,8 @@
 #include "ipnclasses.h"
 #include "lexanalyzer.h"
 #include "syntanalyzer.h"
+#include "interpreter.h"
+
 FILE *OpenFile(const char *path)
 {
   FILE *file_in;
@@ -22,9 +24,6 @@ void CheckError(Automatic &machine)
   err = machine.IsError();
   if (err)
     printf(err);
-  else
-    printf("Correct!");
-  putchar('\n');
 }
 
 void HandleNextLexeme(ListOfLexeme &list, Lexeme *lex)
@@ -35,7 +34,7 @@ void HandleNextLexeme(ListOfLexeme &list, Lexeme *lex)
   }
 }
 
-int main(int argc, char **argv)
+void Interpreter::Run(const char *filename)
 {
   char current_sym;
   FILE *file_in;
@@ -50,7 +49,7 @@ int main(int argc, char **argv)
   IpnElemStack intepr_stack;
   IpnItem *cur_cmd;
 
-  file_in = OpenFile(argv[1]);
+  file_in = OpenFile(filename);
   while ((current_sym = fgetc(file_in)) != EOF) {
     lex = machine.FeedChar(current_sym);
     HandleNextLexeme(list_lex, lex);
@@ -67,5 +66,4 @@ int main(int argc, char **argv)
   while (cur_cmd) {
     (*cur_cmd).p->Evaluate(&intepr_stack, &cur_cmd);
   }
-  return 0;
 }
