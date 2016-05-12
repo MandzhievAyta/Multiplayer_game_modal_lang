@@ -1,0 +1,3 @@
+sell 2 ?production_price();
+buy 2 ?raw_price();
+prod 2;
