@@ -99,7 +99,7 @@ void WaitStart(int sockfd)
   do {
     len = read(sockfd, buf, sizeof(buf));
     if (len == 0) {
-      throw GameOverResultEx(buf, 0, win_sym);
+      throw GameOverResultEx(buf, buf_size, win_sym);
     }
     for (i=0; (i<len) && (!chk); i++ ) {
       if (buf[i] == start_sym) {
@@ -157,7 +157,7 @@ void WaitReadAuction(int sockfd, InfoMarket &market)
     lenbuf = read(sockfd, buf + cur_size, sizeof(buf) - cur_size);
     cur_size += lenbuf;
     if (lenbuf == 0) {
-      throw GameOverResultEx(buf, 0, win_sym);
+      throw GameOverResultEx(buf, buf_size, win_sym);
     }
     for (i = cur_size - lenbuf; i < cur_size; i++) {
       if (buf[i] == auct_bord_sym) {
@@ -196,7 +196,7 @@ void ReadMarket(int sockfd, InfoMarket &market)
   do {
     len = read(sockfd, buf, sizeof(buf));
     if (len == 0) {
-      throw GameOverResultEx(buf, 0, win_sym);
+      throw GameOverResultEx(buf, buf_size, win_sym);
     }
     for(i = 0; (i < len) && (num < 7); i++) {
       if (buf[i] == info_sym) {
@@ -225,7 +225,7 @@ void WhoAmI(int sockfd, InfoMarket &market)
   do {
     len = read(sockfd, buf, sizeof(buf));
     if (len == 0) {
-      throw GameOverResultEx(buf, 0, win_sym);
+      throw GameOverResultEx(buf, buf_size, win_sym);
     }
     for (i = 0; (i < len) && (!chk); i++) {
       if (buf[i] == '*') {
@@ -260,7 +260,7 @@ void ReadPlayers(int sockfd, InfoMarket &market)
     do {
       len = read(sockfd, buf, sizeof(buf));
       if (len == 0) {
-        throw GameOverResultEx(buf, 0, win_sym);
+        throw GameOverResultEx(buf, buf_size, win_sym);
       }
       for(j = 0; (j < len) && (!leaved) && (num < 5); j++) {
         if (buf[j] == info_sym) {

@@ -1,0 +1,83 @@
+if (?raw(?my_id()) < ?factories(?my_id())) {
+  $amnt_to_produce := ?raw(?my_id());
+} else {
+  $amnt_to_produce := ?factories(?my_id());
+};
+if ($amnt_to_produce * 2000 > ?money(?my_id())) {
+  $amnt_to_produce := ?money(?my_id()) / 2000;
+};
+prod $amnt_to_produce;
+
+$i := 1;
+$amnt_products := 0;
+while ($i <= ?players()) {
+  if (?money($i) > 0)
+    $amnt_products := $amnt_products + ?production($i);
+  $i := $i + 1;
+};
+
+if (($amnt_products < ?demand()) | ?turn() == 1) {
+  sell ?production(?my_id()) ?production_price();
+} else {
+  $counter := 0;
+  while ($counter < ?players()) {
+    $sold[$counter] :=
+      (?result_prod_price($counter + 1) * 100) / $prev_prod_price;
+    $counter := $counter + 1;
+  };
+  $flag := 1;
+  while ($flag) {
+    $flag := 0;
+    $count := 0;
+    while ($count < (?players() - 1)) {
+      if ($sold[$count] < $sold[$count + 1]) {
+        $tmp := $sold[$count + 1];
+        $sold[$count + 1] := $sold[$count];
+        $sold[$count] := $tmp;
+        $flag := 1;
+      };
+      $count := $count + 1;
+    };
+  };
+  if ($sold[0] > 0) {
+    $count := 0;
+    sell ?production(?my_id()) (($sold[0] * ?production_price()) / 100);
+  } else {
+    sell ?production(?my_id()) (?production_price());
+  };
+};
+if (?turn() == 1) {
+  buy (?factories(?my_id()) - ?raw(?my_id())) ?raw_price();
+} else {
+  $counter := 0;
+  while ($counter < ?players()) {
+    $bought[$counter] :=
+      (?result_raw_price($counter + 1) * 100) / $prev_raw_price;
+    $counter := $counter + 1;
+  };
+  $flag := 1;
+  while ($flag) {
+    $flag := 0;
+    $count := 0;
+    while ($count < (?players() - 1)) {
+      if ($bought[$count] < $bought[$count + 1]) {
+        $tmp := $bought[$count + 1];
+        $bought[$count + 1] := $bought[$count];
+        $bought[$count] := $tmp;
+        $flag := 1;
+      };
+      $count := $count + 1;
+    };
+  };
+  if ($bought[0] > 0) {
+    buy (?factories(?my_id()) - ?raw(?my_id()))
+        (($bought[0] * ?raw_price()) / 100);
+  } else {
+    buy (?factories(?my_id()) - ?raw(?my_id())) ?raw_price();
+  };
+};
+if (?money(?my_id()) > 100000) {
+  build 1;
+};
+$prev_prod_price := ?production_price();
+$prev_raw_price := ?raw_price();
