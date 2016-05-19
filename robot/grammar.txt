@@ -1,0 +1,14 @@
+<program> -> <line>{ ;<line> };
+<block> -> '{' <line>{;<line>}; '}'
+<line> -> <var> := <expr> | if <expr> <line> [ else <line> ] |
+          while '('<expr>')' <line> | <block> |
+          print'('<printarg>{,<printarg>}')' | buy <expr> <expr> |
+          sell <expr> <expr> | build <expr> | prod <expr> | endturn |
+<expr> -> <ari1> <ari1_alternative>
+<ari1_alternative> -> [ > | < | <> | >= | <= | == ] <ari1> | <epsilon>
+<ari1> -> <ari2> { [ + | - | '|' ] <ari2> }
+<ari2> -> <ari3> { [ * | / | & ] <ari3> }
+<ari3> -> <var> | number | function'('[ { <expr>{ ,<expr> } } ]')' | !<ari3> |
+          '('<expr>')'
+<printpar> -> <expr> | conststr
+<var> -> I{ '[' <expr> ']' }
