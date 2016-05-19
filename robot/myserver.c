@@ -531,8 +531,8 @@ void buy(struct list_clients *cl, int arg1, int arg2, struct banker *bank)
 {
   char string[100];
   int i=0;
-  if ((arg1<=bank->row) && (arg2*arg1<=cl->mon) && 
-      (arg2>=bank->min_p) && (arg1>=0) && (arg2>=0)) {
+  if ((arg1<=bank->row) && (arg2*arg1<=cl->mon) &&
+      (arg2>=bank->min_p) && (arg1>0) && (arg2>=0)) {
     while ((*bank).buy[i].state==1) {
       if ((*bank).buy[i].cl==cl) break;
       i++;
@@ -543,7 +543,7 @@ void buy(struct list_clients *cl, int arg1, int arg2, struct banker *bank)
     (*bank).buy[i].price=arg2;
     appl_accept(cl);
   } else {
-    if ((arg1<0) || (arg2<0)) {
+    if ((arg1<=0) || (arg2<0)) {
       sprintf(string, "You entered bad request\n");
       write(cl->fd, string, strlen(string));
     }
@@ -568,7 +568,7 @@ void sell(struct list_clients *cl, int arg1, int arg2, struct banker *bank)
   char string[100];
   int i=0;
   if ((arg1<=cl->prod) && (arg1<=bank->prod) && 
-    (arg2<=bank->max_p) && (arg1>=0) && (arg2>=0)) {
+      (arg2<=bank->max_p) && (arg1>0) && (arg2>=0)) {
     while ((*bank).sell[i].state==1) {
       if ((*bank).sell[i].cl==cl) break;
       i++;
@@ -579,7 +579,7 @@ void sell(struct list_clients *cl, int arg1, int arg2, struct banker *bank)
     (*bank).sell[i].price=arg2;
     appl_accept(cl);
   } else {
-    if ((arg1<0) || (arg2<0)) {
+    if ((arg1<=0) || (arg2<0)) {
       sprintf(string, "You entered bad request\n");
       write(cl->fd, string, strlen(string));
     }

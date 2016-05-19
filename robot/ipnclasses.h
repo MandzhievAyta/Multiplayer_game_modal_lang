@@ -48,19 +48,20 @@ public:
   virtual ~IpnElem() {}
   virtual void Evaluate(IpnElemStack *stack, IpnItem **cur_cmd,
                         GameContext &context) const = 0;
+  virtual void Print() = 0;
 };
 
 struct IpnItem{
   IpnElem *p;
   IpnItem *next;
   IpnItem(): next(NULL) {}
+  ~IpnItem() {}
 };
 
 class ListOfIpnItem {
 private:
   IpnItem *first;
   IpnItem *last;
-/*  IpnItem *cur;*/
   ListOfIpnItem(const ListOfIpnItem &);
   void operator=(const ListOfIpnItem &);
 public:
@@ -68,8 +69,6 @@ public:
   ~ListOfIpnItem();
   IpnItem *GetAddr() { return last; }
   void Append(IpnElem *object);
-/*  void StartIter() { cur = first; }*/
-/*  IpnElem *GetNext();*/
   IpnItem *GetFirst() { return first; }
 };
 
@@ -92,6 +91,10 @@ public:
   {
     *cur_cmd = (*cur_cmd)->next;
   }
+  virtual void Print()
+  {
+    printf("IpnNoOp");
+  }
 };
 
 class IpnConst: public IpnElem {
@@ -112,6 +115,10 @@ public:
   virtual IpnElem *Clone() const {
     return new IpnOpenBracket();
   }
+  virtual void Print()
+  {
+    printf("IpnOpenBracket");
+  }
 };
 
 class IpnInt: public IpnConst {
@@ -124,6 +131,10 @@ public:
     return new IpnInt(value);
   }
   int Get() const { return value; }
+  virtual void Print()
+  {
+    printf("IpnInt = %d", value);
+  }
 };
 
 class IpnString: public IpnConst {
@@ -139,6 +150,10 @@ public:
     return new IpnString(value);
   }
   char *Get() const { return value; }
+  virtual void Print()
+  {
+    printf("IpnString = %s", value);
+  }
 };
 
 class IpnVarAddr: public IpnConst {
@@ -160,13 +175,10 @@ public:
      list->Change(name, newvalue);
   }
   int *Get() const { return list->Get(name); }
-  void AddDimension(int dim) {
-    char string[1024], *tmp = new char[strlen(name)];
-    sprintf(string, "%d", dim);
-    tmp = new char[strlen(name) + strlen(string) + 3];
-    sprintf(tmp, "%s[%d]", name, dim);
-    delete[] name;
-    name = tmp;
+  void AddDimension(int dim);
+  virtual void Print()
+  {
+    printf("IpnVarAddr = %s", name);
   }
 };
 
@@ -181,6 +193,10 @@ public:
     return new IpnLabel(value);
   }
   IpnItem *Get() const { return value; }
+  virtual void Print()
+  {
+    printf("IpnLabel");
+  }
 };
 
 class IpnPrint: public IpnElem {
@@ -188,32 +204,10 @@ public:
   IpnPrint() {}
   virtual ~IpnPrint() {}
   virtual void Evaluate(IpnElemStack *stack, IpnItem **cur_cmd,
-                        GameContext &context) const
+                        GameContext &context) const;
+  virtual void Print()
   {
-    IpnElemStack local_stack;
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *ipn_int;
-    IpnString *ipn_str;
-    IpnOpenBracket *ipn_brkt;
-    while (!(ipn_brkt = dynamic_cast<IpnOpenBracket*>(operand1))) {
-      local_stack.Push(operand1);
-      operand1 = stack->Pop();
-    }
-    delete operand1;
-    operand1 = local_stack.Pop();
-    while (operand1) {
-      ipn_int = dynamic_cast<IpnInt*>(operand1);
-      if (ipn_int) {
-        printf("%d", ipn_int->Get());
-      } else {
-        ipn_str = dynamic_cast<IpnString*>(operand1);
-        printf("%s", ipn_str->Get());
-      }
-      delete operand1;
-      operand1 = local_stack.Pop();
-    }
-    printf("\n");
-    *cur_cmd = (*cur_cmd)->next;
+    printf("IpnPrint");
   }
 };
 
@@ -236,22 +230,10 @@ public:
   IpnSell() {}
   virtual ~IpnSell() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    char string[1024];
-    IpnElem *operand2 = stack->Pop();
-    IpnInt *i2 = dynamic_cast<IpnInt*>(operand2);
-/*    if (!i2)
-      throw IpnExNotInt(operand2);*/
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    sprintf(string, "sell %d %d\n", i1->Get(), i2->Get());
-    write(context.sockfd, string, strlen(string));
-    delete operand1;
-    delete operand2;
-    return NULL;
+    printf("IpnSell");
   }
 };
 
@@ -260,22 +242,10 @@ public:
   IpnBuy() {}
   virtual ~IpnBuy() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    char string[1024];
-    IpnElem *operand2 = stack->Pop();
-    IpnInt *i2 = dynamic_cast<IpnInt*>(operand2);
-/*    if (!i2)
-      throw IpnExNotInt(operand2);*/
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    sprintf(string, "buy %d %d\n", i1->Get(), i2->Get());
-    write(context.sockfd, string, strlen(string));
-    delete operand1;
-    delete operand2;
-    return NULL;
+    printf("IpnBuy");
   }
 };
 
@@ -284,17 +254,10 @@ public:
   IpnProd() {}
   virtual ~IpnProd() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    char string[1024];
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    sprintf(string, "prod %d\n", i1->Get());
-    write(context.sockfd, string, strlen(string));
-    delete operand1;
-    return NULL;
+    printf("IpnProd");
   }
 };
 
@@ -303,17 +266,10 @@ public:
   IpnBuild() {}
   virtual ~IpnBuild() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    char string[1024];
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    sprintf(string, "build %d\n", i1->Get());
-    write(context.sockfd, string, strlen(string));
-    delete operand1;
-    return NULL;
+    printf("IpnBuild");
   }
 };
 
@@ -326,6 +282,10 @@ public:
   {
     return new IpnInt(context.market.me);
   }
+  virtual void Print()
+  {
+    printf("IpnMyId");
+  }
 };
 
 class IpnTurn: public IpnFunction {
@@ -336,6 +296,10 @@ public:
                                GameContext &context) const
   {
     return new IpnInt(context.market.mnth);
+  }
+  virtual void Print()
+  {
+    printf("IpnTurn");
   }
 };
 
@@ -348,6 +312,10 @@ public:
   {
     return new IpnInt(context.market.max_cl);
   }
+  virtual void Print()
+  {
+    printf("IpnPlayers");
+  }
 };
 
 class IpnActivePlayers: public IpnFunction {
@@ -358,6 +326,10 @@ public:
                                GameContext &context) const
   {
     return new IpnInt(context.market.cur_cl);
+  }
+  virtual void Print()
+  {
+    printf("IpnActivePlayers");
   }
 };
 
@@ -370,6 +342,10 @@ public:
   {
     return new IpnInt(context.market.row);
   }
+  virtual void Print()
+  {
+    printf("IpnSupply");
+  }
 };
 
 class IpnRawPrice: public IpnFunction {
@@ -380,6 +356,10 @@ public:
                                GameContext &context) const
   {
     return new IpnInt(context.market.min_price);
+  }
+  virtual void Print()
+  {
+    printf("IpnRawPrice");
   }
 };
 
@@ -392,6 +372,10 @@ public:
   {
     return new IpnInt(context.market.prod);
   }
+  virtual void Print()
+  {
+    printf("IpnDemand");
+  }
 };
 
 class IpnProductionPrice: public IpnFunction {
@@ -403,6 +387,10 @@ public:
   {
     return new IpnInt(context.market.max_price);
   }
+  virtual void Print()
+  {
+    printf("IpnProductionPrice");
+  }
 };
 
 class IpnMoney: public IpnFunction {
@@ -410,21 +398,10 @@ public:
   IpnMoney() {}
   virtual ~IpnMoney() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-    int indx;
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    indx = i1->Get();
-    delete operand1;
-    if (indx > context.market.max_cl)
-      return new IpnInt(-1);
-    if (context.market.players[indx - 1].state == 0)
-      return new IpnInt(-1);
-    else
-      return new IpnInt(context.market.players[indx - 1].mon);
+    printf("IpnMoney");
   }
 };
 
@@ -433,21 +410,10 @@ public:
   IpnRaw() {}
   virtual ~IpnRaw() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-    int indx;
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    indx = i1->Get();
-    delete operand1;
-    if (indx > context.market.max_cl)
-      return new IpnInt(-1);
-    if (context.market.players[indx - 1].state == 0)
-      return new IpnInt(-1);
-    else
-      return new IpnInt(context.market.players[indx - 1].row);
+    printf("IpnRaw");
   }
 };
 
@@ -456,21 +422,10 @@ public:
   IpnProduction() {}
   virtual ~IpnProduction() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-    int indx;
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    indx = i1->Get();
-    delete operand1;
-    if (indx > context.market.max_cl)
-      return new IpnInt(-1);
-    if (context.market.players[indx - 1].state == 0)
-      return new IpnInt(-1);
-    else
-      return new IpnInt(context.market.players[indx - 1].prod);
+    printf("IpnProduction");
   }
 };
 
@@ -479,21 +434,10 @@ public:
   IpnFactories() {}
   virtual ~IpnFactories() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-    int indx;
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    indx = i1->Get();
-    delete operand1;
-    if (indx > context.market.max_cl)
-      return new IpnInt(-1);
-    if (context.market.players[indx - 1].state == 0)
-      return new IpnInt(-1);
-    else
-      return new IpnInt(context.market.players[indx - 1].fact);
+    printf("IpnFactories");
   }
 };
 
@@ -502,21 +446,10 @@ public:
   IpnManufactured() {}
   virtual ~IpnManufactured() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-    int indx;
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    indx = i1->Get();
-    delete operand1;
-    if (indx > context.market.max_cl)
-      return new IpnInt(-1);
-    if (context.market.players[indx - 1].state == 0)
-      return new IpnInt(-1);
-    else
-      return new IpnInt(context.market.players[indx - 1].b_fact);
+    printf("IpnManufactured");
   }
 };
 
@@ -525,29 +458,10 @@ public:
   IpnResultRawSold() {}
   virtual ~IpnResultRawSold() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-    int indx, res = 0, j;
-    InfoBet *p;
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    indx = i1->Get();
-    delete operand1;
-    if (indx > context.market.max_cl)
-      return new IpnInt(-1);
-    p = context.market.sold;
-    for (j = 0; (j < context.market.max_cl) && (p[j].state == 1); j++) {
-      if (p[j].num == indx) {
-        res = p[j].amnt;
-        break;
-      }
-    }
-    if (context.market.players[indx - 1].state == 0)
-      return new IpnInt(-1);
-    else
-      return new IpnInt(res);
+    printf("IpnResultRawSold");
   }
 };
 
@@ -556,29 +470,10 @@ public:
   IpnResultRawPrice() {}
   virtual ~IpnResultRawPrice() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-    int indx, res = 0, j;
-    InfoBet *p;
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    indx = i1->Get();
-    delete operand1;
-    if (indx > context.market.max_cl)
-      return new IpnInt(-1);
-    p = context.market.sold;
-    for (j = 0; (j < context.market.max_cl) && (p[j].state == 1); j++) {
-      if (p[j].num == indx) {
-        res = p[j].price;
-        break;
-      }
-    }
-    if (context.market.players[indx - 1].state == 0)
-      return new IpnInt(-1);
-    else
-      return new IpnInt(res);
+    printf("IpnResultRawPrice");
   }
 };
 
@@ -587,29 +482,10 @@ public:
   IpnResultProdBought() {}
   virtual ~IpnResultProdBought() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-    int indx, res = 0, j;
-    InfoBet *p;
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    indx = i1->Get();
-    delete operand1;
-    if (indx > context.market.max_cl)
-      return new IpnInt(-1);
-    p = context.market.bought;
-    for (j = 0; (j < context.market.max_cl) && (p[j].state == 1); j++) {
-      if (p[j].num == indx) {
-        res = p[j].amnt;
-        break;
-      }
-    }
-    if (context.market.players[indx - 1].state == 0)
-      return new IpnInt(-1);
-    else
-      return new IpnInt(res);
+    printf("IpnResultProdBought");
   }
 };
 
@@ -618,65 +494,22 @@ public:
   IpnResultProdPrice() {}
   virtual ~IpnResultProdPrice() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-    int indx, res = 0, j;
-    InfoBet *p;
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    indx = i1->Get();
-    delete operand1;
-    if (indx > context.market.max_cl)
-      return new IpnInt(-1);
-    p = context.market.bought;
-    for (j = 0; (j < context.market.max_cl) && (p[j].state == 1); j++) {
-      if (p[j].num == indx) {
-        res = p[j].price;
-        break;
-      }
-    }
-    if (context.market.players[indx - 1].state == 0)
-      return new IpnInt(-1);
-    else
-      return new IpnInt(res);
+    printf("IpnResultProdProce");
   }
 };
-/*
-class IpnEndTurn: public IpnFunction {
-public:
-  IpnEndTurn() {}
-  virtual ~IpnEndTurn() {}
-  virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
-  {
-    char string[1024];
-    sprintf(string, turn"\n", i1->Get());
-    write(context.sockfd, string, strlen(string));
-    return NULL;
-  }
-};
-*/
+
 class IpnFunAssign: public IpnFunction {
 public:
   IpnFunAssign() {}
   virtual ~IpnFunAssign() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    IpnElem *operand2 = stack->Pop();
-    IpnVarAddr *i2 = dynamic_cast<IpnVarAddr*>(operand2);
-/*    if (!i2)
-      throw IpnExNotVar(operand2);*/
-    i2->Change(i1->Get());
-    delete operand1;
-    delete operand2;
-    return NULL;
+    printf("IpnFunAssign");
   }
 };
 
@@ -685,33 +518,20 @@ public:
   IpnFunLogNot() {}
   virtual ~IpnFunLogNot() {}
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand);
-/*    if (!i1)
-      throw IpnExNotLogNot(operand1);*/
-    int res = !(i1->Get());
-    return new IpnInt(res);
+    printf("IpnFunLogNot");
   }
 };
 
 class IpnFunAddDimension: public IpnFunction {
 public:
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
+                               GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    IpnElem *operand2 = stack->Pop();
-    IpnVarAddr *i2 = dynamic_cast<IpnVarAddr*>(operand2);
-/*    if (!i2)
-      throw IpnExNotVarAddr(operand1);*/
-    i2->AddDimension(i1->Get());
-    delete operand1;
-    return i2;
+    printf("IpnFunAddDimension");
   }
 };
 
@@ -719,21 +539,7 @@ class IpnFun2: public IpnFunction {
 public:
   virtual int BinaryOp(int, int) const = 0;
   virtual IpnElem *EvaluateFun(IpnElemStack *stack,
-                               GameContext &context) const
-  {
-    IpnElem *operand2 = stack->Pop();
-    IpnInt *i2 = dynamic_cast<IpnInt*>(operand2);
-/*    if (!i2)
-      throw IpnExNotInt(operand2);*/
-    IpnElem *operand1 = stack->Pop();
-    IpnInt *i1 = dynamic_cast<IpnInt*>(operand1);
-/*    if (!i1)
-      throw IpnExNotInt(operand1);*/
-    int res = BinaryOp(i1->Get(), i2->Get());
-    delete operand1;
-    delete operand2;
-    return new IpnInt(res);
-  }
+                               GameContext &context) const;
 };
 
 class IpnFunPlus: public IpnFun2 {
@@ -742,6 +548,10 @@ public:
   virtual ~IpnFunPlus() {}
   virtual int BinaryOp(int i1, int i2) const {
     return i1 + i2;
+  }
+  virtual void Print()
+  {
+    printf("IpnFunPlus");
   }
 };
 
@@ -752,6 +562,10 @@ public:
   virtual int BinaryOp(int i1, int i2) const {
     return i1 - i2;
   }
+  virtual void Print()
+  {
+    printf("IpnFunMinus");
+  }
 };
 
 class IpnFunMultiplication: public IpnFun2 {
@@ -761,6 +575,10 @@ public:
   virtual int BinaryOp(int i1, int i2) const {
     return i1 * i2;
   }
+  virtual void Print()
+  {
+    printf("IpnFunMultiplication");
+  }
 };
 
 class IpnFunDivision: public IpnFun2 {
@@ -769,6 +587,10 @@ public:
   virtual ~IpnFunDivision() {}
   virtual int BinaryOp(int i1, int i2) const {
     return (int)(i1 / i2);
+  }
+  virtual void Print()
+  {
+    printf("IpnFunDivision");
   }
 };
 
@@ -782,6 +604,10 @@ public:
     else
       return 0;
   }
+  virtual void Print()
+  {
+    printf("IpnFunLess");
+  }
 };
 
 class IpnFunGreater: public IpnFun2 {
@@ -793,6 +619,10 @@ public:
       return 1;
     else
       return 0;
+  }
+  virtual void Print()
+  {
+    printf("IpnFunGreater");
   }
 };
 
@@ -806,6 +636,10 @@ public:
     else
       return 0;
   }
+  virtual void Print()
+  {
+    printf("IpnFunEqual");
+  }
 };
 
 class IpnFunGreaterEqual: public IpnFun2 {
@@ -817,6 +651,10 @@ public:
       return 1;
     else
       return 0;
+  }
+  virtual void Print()
+  {
+    printf("IpnFunGreaterEqual");
   }
 };
 
@@ -830,6 +668,10 @@ public:
     else
       return 0;
   }
+  virtual void Print()
+  {
+    printf("IpnFunLessEqual");
+  }
 };
 
 class IpnFunNotEqual: public IpnFun2 {
@@ -841,6 +683,10 @@ public:
       return 1;
     else
       return 0;
+  }
+  virtual void Print()
+  {
+    printf("IpnFunNotEqual");
   }
 };
 
@@ -854,6 +700,10 @@ public:
     else
       return 0;
   }
+  virtual void Print()
+  {
+    printf("IpnFunLogAnd");
+  }
 };
 
 class IpnFunLogOr: public IpnFun2 {
@@ -866,6 +716,10 @@ public:
     else
       return 0;
   }
+  virtual void Print()
+  {
+    printf("IpnFunOr");
+  }
 };
 
 class IpnTakeValue: public IpnElem {
@@ -873,24 +727,10 @@ public:
   IpnTakeValue() {}
   virtual ~IpnTakeValue() {}
   virtual void Evaluate(IpnElemStack *stack, IpnItem **cur_cmd,
-                        GameContext &context) const
+                        GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand = stack->Pop();
-    IpnVarAddr *variable = dynamic_cast<IpnVarAddr*>(operand);
-    int *value;
-    /*if (!variable)
-      throw IpnExcNotVar(operand);*/
-    value = variable->Get();
-    /*
-    if (!value)
-      throw IpnExcVarNotDeclared(operand);
-    */
-    if (!value)
-      stack->Push(new IpnInt(0));
-    else
-      stack->Push(new IpnInt(*value));
-    delete operand;
-    *cur_cmd = (*cur_cmd)->next;
+    printf("IpnFunTakeValue");
   }
 };
 
@@ -899,15 +739,10 @@ public:
   IpnOpGo() {}
   virtual ~IpnOpGo() {}
   virtual void Evaluate(IpnElemStack *stack, IpnItem **cur_cmd,
-                        GameContext &context) const
+                        GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnLabel *lab = dynamic_cast<IpnLabel*>(operand1);
-  /*  if (!lab)
-      throw IpnExNotLabel(operand1);*/
-    IpnItem *addr = lab->Get();
-    *cur_cmd = addr;
-    delete operand1;
+    printf("IpnOpGo");
   }
 };
 
@@ -916,38 +751,65 @@ public:
   IpnOpGoFalse() {}
   virtual ~IpnOpGoFalse() {}
   virtual void Evaluate(IpnElemStack *stack, IpnItem **cur_cmd,
-                        GameContext &context) const
+                        GameContext &context) const;
+  virtual void Print()
   {
-    IpnElem *operand1 = stack->Pop();
-    IpnLabel *lab = dynamic_cast<IpnLabel*>(operand1);
-  /*  if (!lab)
-      throw IpnExNotLabel(operand1);*/
-    IpnElem *operand2 = stack->Pop();
-    IpnInt *clause = dynamic_cast<IpnInt*>(operand2);
-  /*  if (!clause)
-      throw IpnExNotInt(operand2);*/
-    if (!clause->Get()) {
-      IpnItem *addr = lab->Get();
-      *cur_cmd = addr;
-    } else {
-      *cur_cmd = (*cur_cmd)->next;
-    }
-    delete operand2;
-    delete operand1;
+    printf("IpnOpGoFalse");
   }
 };
 
-class SyntException {
+class IpnEx {
 private:
-  enum { str_size = 1024 };
-  char str[str_size];
+  IpnElem *elem;
 public:
-  SyntException(const char *err_str, const char *lex, int line) {
-    strcpy(str, err_str);
-    sprintf(str + strlen(str), " in line %d: '%s'", line, lex);
+  IpnEx(IpnElem *p): elem(p) {}
+  virtual void PrintWhichError() const = 0;
+  virtual ~IpnEx() {}
+  void Print () const
+  {
+    PrintWhichError();
+    elem->Print();
   }
-  SyntException(const char *str1) { strcpy(str, str1); }
-  const char *ErrorString() { return str; }
+};
+
+class IpnExNotInt: public IpnEx {
+public:
+  IpnExNotInt(IpnElem *p): IpnEx(p) {}
+  virtual ~IpnExNotInt() {}
+  virtual void PrintWhichError() const
+  {
+    printf("Int expected:");
+  }
+};
+
+class IpnExNotVar: public IpnEx {
+public:
+  IpnExNotVar(IpnElem *p): IpnEx(p) {}
+  virtual ~IpnExNotVar() {}
+  virtual void PrintWhichError() const
+  {
+    printf("Variable expected:");
+  }
+};
+
+class IpnExVarNotDeclared: public IpnEx {
+public:
+  IpnExVarNotDeclared(IpnElem *p): IpnEx(p) {}
+  virtual ~IpnExVarNotDeclared() {}
+  virtual void PrintWhichError() const
+  {
+    printf("Use of variable before declaration:");
+  }
+};
+
+class IpnExNotLabel: public IpnEx {
+public:
+  IpnExNotLabel(IpnElem *p): IpnEx(p) {}
+  virtual ~IpnExNotLabel() {}
+  virtual void PrintWhichError() const
+  {
+    printf("Label expected:");
+  }
 };
 
 #endif

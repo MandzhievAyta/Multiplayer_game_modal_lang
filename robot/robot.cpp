@@ -15,16 +15,16 @@ enum { find_info_auct = 0, info_auct_beg = 1, info_auct_end = 2 };
 enum { sold_mode = '#', bought_mode = '~' };
 enum { start_sym = '@', auct_bord_sym = '%', info_sym = '#', win_sym = '|' };
 
-class Exception {
+class GameOverResultEx {
   enum { len = 2048 };
   char str[len];
   int winner;
 public:
-  Exception(char *buf, int size, char bor_sym);
-  void PrintException() const {printf(str);}
+  GameOverResultEx(char *buf, int size, char bor_sym);
+  void PrintGameOverResultEx() const { printf(str); }
 };
 
-Exception::Exception(char *buf, int size, char detector)
+GameOverResultEx::GameOverResultEx(char *buf, int size, char detector)
 {
   int i;
   winner = 0;
@@ -40,7 +40,17 @@ Exception::Exception(char *buf, int size, char detector)
     sprintf(str, "You lose!\n");
   }
 }
-
+/*
+class SmartBufer {
+private:
+  int sockfd;
+  int cur_size;
+  char buf[buf_size];
+public:
+  SmartBufer(int fd): sockfd(fd), cur_size(0) {}
+  char *GetString();
+};
+*/
 int SocketErr()
 {
   int sockfd;
@@ -89,7 +99,7 @@ void WaitStart(int sockfd)
   do {
     len = read(sockfd, buf, sizeof(buf));
     if (len == 0) {
-      throw Exception(buf, buf_size, win_sym);
+      throw GameOverResultEx(buf, 0, win_sym);
     }
     for (i=0; (i<len) && (!chk); i++ ) {
       if (buf[i] == start_sym) {
@@ -147,7 +157,7 @@ void WaitReadAuction(int sockfd, InfoMarket &market)
     lenbuf = read(sockfd, buf + cur_size, sizeof(buf) - cur_size);
     cur_size += lenbuf;
     if (lenbuf == 0) {
-      throw Exception(buf, buf_size, win_sym);
+      throw GameOverResultEx(buf, 0, win_sym);
     }
     for (i = cur_size - lenbuf; i < cur_size; i++) {
       if (buf[i] == auct_bord_sym) {
@@ -186,7 +196,7 @@ void ReadMarket(int sockfd, InfoMarket &market)
   do {
     len = read(sockfd, buf, sizeof(buf));
     if (len == 0) {
-      throw Exception(buf, buf_size, win_sym);
+      throw GameOverResultEx(buf, 0, win_sym);
     }
     for(i = 0; (i < len) && (num < 7); i++) {
       if (buf[i] == info_sym) {
@@ -215,7 +225,7 @@ void WhoAmI(int sockfd, InfoMarket &market)
   do {
     len = read(sockfd, buf, sizeof(buf));
     if (len == 0) {
-      throw Exception(buf, buf_size, win_sym);
+      throw GameOverResultEx(buf, 0, win_sym);
     }
     for (i = 0; (i < len) && (!chk); i++) {
       if (buf[i] == '*') {
@@ -250,7 +260,7 @@ void ReadPlayers(int sockfd, InfoMarket &market)
     do {
       len = read(sockfd, buf, sizeof(buf));
       if (len == 0) {
-        throw Exception(buf, buf_size, win_sym);
+        throw GameOverResultEx(buf, 0, win_sym);
       }
       for(j = 0; (j < len) && (!leaved) && (num < 5); j++) {
         if (buf[j] == info_sym) {
@@ -307,15 +317,7 @@ void PrintAuction(InfoMarket &market)
 void SetAppl(int sockfd, GameContext &context, const char *instructions_file)
 {
   Interpreter program;
-//  char str[str_size];
-
   program.Run(instructions_file, context);
-/*  sprintf(str, "buy 2 %d\n", context.market.min_price);
-  write(sockfd, str, strlen(str));
-  sprintf(str, "sell 2 %d\n", context.market.max_price);
-  write(sockfd, str, strlen(str));
-  sprintf(str, "prod 2\n");
-  write(sockfd, str, strlen(str));*/
 }
 
 inline void CreateInfoBet(InfoMarket &market)
@@ -324,36 +326,53 @@ inline void CreateInfoBet(InfoMarket &market)
   market.bought = new InfoBet[market.max_cl];
 }
 
+void SetMarketInfo(InfoMarket &market, int sockfd)
+{
+  WaitStart(sockfd);
+  ReadMarket(sockfd, market);
+  market.players = new InfoPlayer[market.cur_cl];
+  market.max_cl = market.cur_cl;
+  CreateInfoBet(market);
+  WhoAmI(sockfd, market);
+  printf("You are player %d\n", market.me);
+}
+
+void DeleteDynamicObjects(InfoMarket &market, ListOfIpnItem *ipn_list)
+{
+  if (market.players)
+    delete[] market.players;
+  if (market.sold)
+    delete[] market.sold;
+  if (market.bought)
+    delete[] market.bought;
+  if (ipn_list)
+    delete ipn_list;
+}
+
 int main(int argc, char **argv)
 {
   int sockfd;
   InfoMarket market;
   ListOfIpnItem *ipn_list = NULL;
-  ListOfVar *list_var = new ListOfVar;
-  GameContext *context;
+  ListOfVar list_var;
   sockfd = SocketErr();
+  GameContext context(&ipn_list, &list_var, market, sockfd);
   Connection(sockfd, argv[1], argv[2]);
-  context = new GameContext(&ipn_list, list_var, market, sockfd);
   try {
-    WaitStart(sockfd);
-    ReadMarket(sockfd, market);
-    market.players = new InfoPlayer[market.cur_cl];
-    market.max_cl = market.cur_cl;
-    CreateInfoBet(market);
-    WhoAmI(sockfd, market);
-    printf("You are player %d\n", market.me);
+    SetMarketInfo(market, sockfd);
     for(;;) {
       PrintMarket(market);
       ReadPlayers(sockfd, market);
       PrintPlayers(market);
-      SetAppl(sockfd, *context, argv[3]);
+      SetAppl(sockfd, context, argv[3]);
       WaitReadAuction(sockfd, market);
       PrintAuction(market);
       ReadMarket(sockfd, market);
     }
   }
-  catch (const Exception &e) {
-    e.PrintException();
+  catch (const GameOverResultEx &e) {
+    e.PrintGameOverResultEx();
   }
+  DeleteDynamicObjects(market, ipn_list);
   return 0;
 }

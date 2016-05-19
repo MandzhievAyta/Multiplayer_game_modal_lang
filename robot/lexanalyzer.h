@@ -13,9 +13,11 @@ private:
   int prev_sym_state;
   int line_number;
   static const char *words[];
+  static const char *functions[];
   static const char *dividers[];
   bool IsDivider(const char *);
   bool IsKeyWord(const char *);
+  bool IsFunction(const char *);
   bool CheckSpaceSymbol(char);
   bool CheckDividerSymbol(char);
   void SwitchToError(char);

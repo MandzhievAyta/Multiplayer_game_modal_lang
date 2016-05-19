@@ -3,6 +3,7 @@ SRCMODULES = lexemes.cpp lexanalyzer.cpp ipnclasses.cpp\
 OBJMODULES = $(SRCMODULES:.cpp=.o)
 CXX = g++
 CXXFLAGS = -Wall -g
+PARAMETRS = "0 3333 stupid"
 
 %.o: %.cpp %.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -17,8 +18,8 @@ endif
 deps.mk: $(SRCMODULES)
 	$(CXX) -MM $^ > $@
 
-#run: runprogram
-#	./runprogram
+run: runrobot
+	./runrobot $(PARAMETRS)
 
 clean: 
 	rm -f *.o runrobot

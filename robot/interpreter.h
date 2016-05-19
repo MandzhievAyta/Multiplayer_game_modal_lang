@@ -5,7 +5,8 @@
 
 class Interpreter {
 public:
-  void
-  Run(const char *filename, GameContext &context);
+  void PrintIpn(ListOfIpnItem *ipn_list);
+  ListOfIpnItem **CreateIpnList(const char *filename, GameContext &context);
+  void Run(const char *filename, GameContext &context);
 };
 #endif

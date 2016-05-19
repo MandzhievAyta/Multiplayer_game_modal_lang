@@ -6,7 +6,6 @@
 #include <stdlib.h>
 SyntaxAnalyzer::SyntaxAnalyzer(ListOfLexeme &l1): list(l1)
 {
-  stack = new IpnElemStack;
   ipn_list = new ListOfIpnItem;
   list.StartIter();
 }
@@ -55,6 +54,8 @@ void SyntaxAnalyzer::Program()
   }
   catch (SyntException &e) {
     printf(e.ErrorString());
+    delete ipn_list;
+    throw;
   }
 }
 
@@ -74,26 +75,25 @@ void SyntaxAnalyzer::Block()
   CheckLexeme("}", "Missed } in block");
 }
 
+void SyntaxAnalyzer::KeyWordPrint()
+{
+  NextNotNull();
+  CheckLexeme("(", "Missed '(' after 'print'");
+  ipn_list->Append(new IpnOpenBracket);
+  PrintArg();
+  while (!strcmp(cur_lex->GetString(), ",")) {
+    NextNotNull();
+    PrintArg();
+  }
+  CheckLexeme(")", "Missed ')' after 'print'");
+  ipn_list->Append(new IpnPrint);
+}
+
 void SyntaxAnalyzer::HandleKeyWords()
 {
   if (!strcmp("print", cur_lex->GetString()))
   {
-    NextNotNull();
-    CheckLexeme("(", "Missed '(' after 'print'");
-    ipn_list->Append(new IpnOpenBracket);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" ( ");
-#endif
-    PrintArg();
-    while (!strcmp(cur_lex->GetString(), ",")) {
-      NextNotNull();
-      PrintArg();
-    }
-    CheckLexeme(")", "Missed ')' after 'print'");
-    ipn_list->Append(new IpnPrint);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" Print ");
-#endif
+    KeyWordPrint();
   } else
   if (!strcmp("buy", cur_lex->GetString()))
   {
@@ -101,9 +101,6 @@ void SyntaxAnalyzer::HandleKeyWords()
     Expr();
     Expr();
     ipn_list->Append(new IpnBuy);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" buy ");
-#endif
   } else
   if (!strcmp("sell", cur_lex->GetString()))
   {
@@ -111,129 +108,99 @@ void SyntaxAnalyzer::HandleKeyWords()
     Expr();
     Expr();
     ipn_list->Append(new IpnSell);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" sell ");
-#endif
   } else
   if (!strcmp("prod", cur_lex->GetString()))
   {
     NextNotNull();
     Expr();
     ipn_list->Append(new IpnProd);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" prod ");
-#endif
   } else
   if (!strcmp("build", cur_lex->GetString()))
   {
     NextNotNull();
     Expr();
     ipn_list->Append(new IpnBuild);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" build ");
-#endif
   } else
   if (!strcmp("endturn", cur_lex->GetString()))
     NextNotNull();
 }
 
-void SyntaxAnalyzer::Line()
+void SyntaxAnalyzer::HandleVariable()
+{
+  Variable();
+  CheckLexeme(":=", "Should be assignment");
+  Expr();
+  ipn_list->Append(new IpnFunAssign);
+}
+
+void SyntaxAnalyzer::HandleIf()
 {
   IpnItem *l1, *l2;
+  NextNotNull();
+  Expr();
+  ipn_list->Append(NULL);
+  l1 = ipn_list->GetAddr();
+  ipn_list->Append(new IpnOpGoFalse);
+  Line();
+  ipn_list->Append(NULL);
+  l2 = ipn_list->GetAddr();
+  ipn_list->Append(new IpnOpGo);
+  if (!strcmp("else", cur_lex->GetString())) {
+    ipn_list->Append(new IpnNoOp);
+    l1->p = new IpnLabel(ipn_list->GetAddr());
+    NextNotNull();
+    Line();
+  }
+  ipn_list->Append(new IpnNoOp);
+  l2->p = new IpnLabel(ipn_list->GetAddr());
+  if (!l1->p) {
+    l1->p = new IpnLabel(ipn_list->GetAddr());
+  }
+}
+
+void SyntaxAnalyzer::HandleWhile()
+{
+  IpnItem *l1, *l2;
+  NextNotNull();
+  ipn_list->Append(new IpnNoOp);
+  l2 = ipn_list->GetAddr();
+  CheckLexeme("(", "Missed '(' after 'while'");
+  Expr();
+  CheckLexeme(")", "Missed ')' after 'while'");
+  ipn_list->Append(NULL);
+  l1 = ipn_list->GetAddr();
+  ipn_list->Append(new IpnOpGoFalse);
+  Line();
+  ipn_list->Append(new IpnLabel(l2));
+  ipn_list->Append(new IpnOpGo());
+  ipn_list->Append(new IpnNoOp);
+  l1->p = new IpnLabel(ipn_list->GetAddr());
+}
+
+void SyntaxAnalyzer::Line()
+{
 #if defined(PRINT_MODE)
   printf("<Line>->");
 #endif
   if ((cur_lex->GetType() == identificator) &&
-      (cur_lex->GetString()[0] == '$')) {
-    Variable();
-    CheckLexeme(":=", "Should be assignment");
-    Expr();
-    ipn_list->Append(new IpnFunAssign);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" := ");
-#endif
+      (cur_lex->GetString()[0] == '$'))
+  {
+    HandleVariable();
   } else
-  if (!strcmp("if", cur_lex->GetString())) {
-    NextNotNull();
-    Expr();
-    ipn_list->Append(NULL);
-    l1 = ipn_list->GetAddr();
-#if defined(PRINT_MODE_POLIZ)
-    printf(" l1 ");
-#endif
-    ipn_list->Append(new IpnOpGoFalse);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" !F ");
-#endif
-    Line();
-    ipn_list->Append(NULL);
-    l2 = ipn_list->GetAddr();
-#if defined(PRINT_MODE_POLIZ)
-    printf(" l2 ");
-#endif
-    ipn_list->Append(new IpnOpGo);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" ! ");
-#endif
-    if (!strcmp("else", cur_lex->GetString())) {
-      ipn_list->Append(new IpnNoOp);
-      l1->p = new IpnLabel(ipn_list->GetAddr());
-#if defined(PRINT_MODE_POLIZ)
-      printf(" l1: ");
-#endif
-      NextNotNull();
-      Line();
-    }
-    ipn_list->Append(new IpnNoOp);
-    l2->p = new IpnLabel(ipn_list->GetAddr());
-#if defined(PRINT_MODE_POLIZ)
-    printf(" l2: ");
-#endif
-    if (!l1->p) {
-      l1->p = l2->p;
-#if defined(PRINT_MODE_POLIZ)
-      printf(" l1: ");
-#endif
-    }
+  if (!strcmp("if", cur_lex->GetString()))
+  {
+    HandleIf();
   } else
-  if (!strcmp("while", cur_lex->GetString())) {
-    NextNotNull();
-    ipn_list->Append(new IpnNoOp);
-    l2 = ipn_list->GetAddr();
-#if defined(PRINT_MODE_POLIZ)
-    printf(" l2: ");
-#endif
-    CheckLexeme("(", "Missed '(' after 'while'");
-    Expr();
-    CheckLexeme(")", "Missed ')' after 'while'");
-    ipn_list->Append(NULL);
-    l1 = ipn_list->GetAddr();
-#if defined(PRINT_MODE_POLIZ)
-    printf(" l1 ");
-#endif
-    ipn_list->Append(new IpnOpGoFalse);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" !F ");
-#endif
-    Line();
-    ipn_list->Append(new IpnLabel(l2));
-#if defined(PRINT_MODE_POLIZ)
-    printf(" l2 ");
-#endif
-    ipn_list->Append(new IpnOpGo());
-#if defined(PRINT_MODE_POLIZ)
-    printf(" ! ");
-#endif
-    ipn_list->Append(new IpnNoOp);
-    l1->p = new IpnLabel(ipn_list->GetAddr());
-#if defined(PRINT_MODE_POLIZ)
-    printf(" l1: ");
-#endif
+  if (!strcmp("while", cur_lex->GetString()))
+  {
+    HandleWhile();
   } else
-  if (!strcmp("{", cur_lex->GetString())) {
+  if (!strcmp("{", cur_lex->GetString()))
+  {
     Block();
   } else
-  if (cur_lex->GetType() == key_word) {
+  if (cur_lex->GetType() == key_word)
+  {
     HandleKeyWords();
   } else
     throw SyntException("Line can not start with this lexeme",
@@ -319,9 +286,6 @@ IpnElem *SyntaxAnalyzer::DefineIpnElem()
   } else
   if (!strcmp("==", str_lex)) {
     elem = new IpnFunEqual;
-/*  } else
-  if (!strcmp("(", str_lex)) {
-    elem = new IpnOpenBracket;*/
   } else
   if (!strcmp("+", str_lex)) {
     elem = new IpnFunPlus;
@@ -371,9 +335,6 @@ void SyntaxAnalyzer::Ari1Alternative()
     NextNotNull();
     Ari1();
     ipn_list->Append(elem);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" %s ", str_lex);
-#endif
   }
 }
 
@@ -393,9 +354,6 @@ void SyntaxAnalyzer::Ari1()
     elem = DefineIpnElem();
     NextNotNull();
     Ari2();
-#if defined(PRINT_MODE_POLIZ)
-    printf(" %s ", str_lex);
-#endif
     str_lex = cur_lex->GetString();
     ipn_list->Append(elem);
   }
@@ -417,9 +375,6 @@ void SyntaxAnalyzer::Ari2()
     elem = DefineIpnElem();
     NextNotNull();
     Ari3();
-#if defined(PRINT_MODE_POLIZ)
-    printf(" %s ", str_lex);
-#endif
     str_lex = cur_lex->GetString();
     ipn_list->Append(elem);
   }
@@ -434,9 +389,6 @@ void SyntaxAnalyzer::Ari3()
   if (cur_lex->GetString()[0] == '$') {
     Variable();
     ipn_list->Append(new IpnTakeValue);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" @ ");
-#endif
   } else
   if (cur_lex->GetString()[0] == '?') {
     elem = DefineIpnFun();
@@ -454,18 +406,12 @@ void SyntaxAnalyzer::Ari3()
   } else
   if (cur_lex->GetType() == number) {
     ipn_list->Append(new IpnInt(atoi(cur_lex->GetString())));
-#if defined(PRINT_MODE_POLIZ)
-    printf(" %s ", cur_lex->GetString());
-#endif
     NextNotNull();
   } else
   if (!strcmp("!", cur_lex->GetString())) {
     NextNotNull();
     Ari3();
     ipn_list->Append(new IpnFunLogNot);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" NOT ");
-#endif
   } else
   if (!strcmp("(", cur_lex->GetString())) {
     NextNotNull();
@@ -483,9 +429,6 @@ void SyntaxAnalyzer::PrintArg()
 #endif
   if (cur_lex->GetType() == const_string) {
     ipn_list->Append(new IpnString(cur_lex->GetString()));
-#if defined(PRINT_MODE_POLIZ)
-    printf(" %s ", cur_lex->GetString());
-#endif
     NextNotNull();
   } else
     Expr();
@@ -497,18 +440,12 @@ void SyntaxAnalyzer::Variable()
   printf("<Variable>->");
 #endif
   ipn_list->Append(new IpnVarAddr(list_var, cur_lex->GetString()));
-#if defined(PRINT_MODE_POLIZ)
-  printf(" %s ", cur_lex->GetString());
-#endif
   NextNotNull();
-  if (!strcmp("[", cur_lex->GetString())) {
+  while (!strcmp("[", cur_lex->GetString())) {
     NextNotNull();
     Expr();
     CheckLexeme("]", "Missed ']' after array");
     ipn_list->Append(new IpnFunAddDimension);
-#if defined(PRINT_MODE_POLIZ)
-    printf(" [] ");
-#endif
   }
 }
 

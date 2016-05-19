@@ -4,8 +4,16 @@
 #include <string.h>
 #include <stdio.h>
 
-const char *Automatic::words[] = { "if", "else", "print", "buy","sell",
+const char *Automatic::words[] = { "if", "else", "print", "buy", "sell",
                                    "prod", "build", "endturn", "while", NULL };
+const char *Automatic::functions[] = { "?my_id", "?turn", "?players",
+                                       "?active_players", "?supply", "?raw",
+                                       "?production_price", "?money",
+                                       "?production", "?factories",
+                                       "?manufactured", "?result_raw_sold",
+                                       "?result_raw_price", "?demand",
+                                       "?result_prod_bought", "?raw_price",
+                                       "?result_prod_price", NULL };
 const char *Automatic::dividers[] = { "+", "-", "*", "/", "<", ">",
                                       "==", ">=", "<=", "<>", "&", "|", "!",
                                       "(", ")", "[", "]", "{", "}", ";",
@@ -27,6 +35,17 @@ bool Automatic::IsKeyWord(const char *str)
   int i;
   for(i = 0; (words[i] != NULL) && (!check); i++) {
     if (!strcmp(str, words[i]))
+      check = true;
+  }
+  return check;
+}
+
+bool Automatic::IsFunction(const char *str)
+{
+  bool check = false;
+  int i;
+  for(i = 0; (functions[i] != NULL) && (!check); i++) {
+    if (!strcmp(str, functions[i]))
       check = true;
   }
   return check;
@@ -61,6 +80,7 @@ void Automatic::SwitchToError(char sym)
   strcpy(str, buf);
   sprintf(buf, "Error occurred in line %d: '%s'", line_number, str);
   state = err_state;
+  delete[] str;
 }
 
 const char *Automatic::IsError()
@@ -135,7 +155,11 @@ Lexeme *Automatic::Identificator(char sym)
     buf_cur_size++;
   } else
   if (CheckDividerSymbol(sym) || CheckSpaceSymbol(sym)) {
-    return HandleDividers(sym, identificator);
+    buf[buf_cur_size] = '\0';
+    if (IsFunction(buf) || buf[0] == '$')
+      return HandleDividers(sym, identificator);
+    else
+      SwitchToError(sym);
   } else {
     SwitchToError(sym);
   }

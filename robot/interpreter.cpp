@@ -19,12 +19,15 @@ FILE *OpenFile(const char *path)
   return file_in;
 }
 
-void CheckError(Automatic &machine)
+bool CheckError(Automatic &machine)
 {
   const char *err;
   err = machine.IsError();
-  if (err)
+  if (err) {
     printf(err);
+    return false;
+  }
+  return true;
 }
 
 void HandleNextLexeme(ListOfLexeme &list, Lexeme *lex)
@@ -35,23 +38,30 @@ void HandleNextLexeme(ListOfLexeme &list, Lexeme *lex)
   }
 }
 
-void Interpreter::Run(const char *filename, GameContext &context)
+void PrintIpn(ListOfIpnItem *ipn_list)
 {
-  char current_sym;
-  FILE *file_in;
+  IpnItem *cur_cmd;
+  cur_cmd = ipn_list->GetFirst();
+  while (cur_cmd) {
+    (*cur_cmd).p->Print();
+    printf("  ");
+    cur_cmd = cur_cmd->next;
+  }
+}
 
+ListOfIpnItem **
+Interpreter::CreateIpnList(const char *filename, GameContext &context)
+{
+  int current_sym;
+  FILE *file_in;
   Automatic machine;
-  SyntaxAnalyzer *syntax;
+  SyntaxAnalyzer *syntax = NULL;
   Lexeme *lex = NULL;
   ListOfLexeme list_lex;
-  IpnElemStack intepr_stack;
-  IpnItem *cur_cmd;
   ListOfIpnItem **ipn_list = context.ipn_list;
   ListOfVar *list_var = context.list_var;
-
-
-  file_in = OpenFile(filename);
   if (!(*ipn_list)) {
+    file_in = OpenFile(filename);
     while ((current_sym = fgetc(file_in)) != EOF) {
       lex = machine.FeedChar(current_sym);
       HandleNextLexeme(list_lex, lex);
@@ -61,12 +71,35 @@ void Interpreter::Run(const char *filename, GameContext &context)
 #if defined(PRINT_MODE)
     PrintListLexeme(list_lex);
 #endif
-    CheckError(machine);
-    syntax = new SyntaxAnalyzer(list_lex);
-    *ipn_list = syntax->Check(list_var);
+    if (CheckError(machine)) {
+      syntax = new SyntaxAnalyzer(list_lex);
+      *ipn_list = syntax->Check(list_var);
+    }
   }
-  cur_cmd = (*ipn_list)->GetFirst();
-  while (cur_cmd) {
-    (*cur_cmd).p->Evaluate(&intepr_stack, &cur_cmd, context);
+  if (syntax)
+    delete syntax;
+  return ipn_list;
+}
+
+void Interpreter::Run(const char *filename, GameContext &context)
+{
+  ListOfIpnItem **ipn_list;
+  IpnElemStack intepr_stack;
+  IpnItem *cur_cmd = NULL;
+
+  ipn_list = CreateIpnList(filename, context);
+#if defined(PRINT_IPN)
+  PrintIpn(*ipn_list);
+#endif
+  if (*ipn_list)
+    cur_cmd = (*ipn_list)->GetFirst();
+  try {
+    while (cur_cmd) {
+      (*cur_cmd).p->Evaluate(&intepr_stack, &cur_cmd, context);
+    }
+  }
+  catch(const IpnEx &e) {
+    e.Print();
+    throw;
   }
 }
