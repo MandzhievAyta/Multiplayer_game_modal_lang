@@ -22,4 +22,4 @@ run: runrobot
 	./runrobot $(PARAMETRS)
 
 clean: 
-	rm -f *.o runrobot
+	rm -f *.o runrobot deps.mk

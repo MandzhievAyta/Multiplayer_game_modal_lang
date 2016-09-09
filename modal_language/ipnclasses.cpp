@@ -68,17 +68,6 @@ void ListOfIpnItem::Append(IpnElem *object)
   }
   last->p = object;
 }
-/*
-IpnElem *ListOfIpnItem::GetNext()
-{
-  IpnItem *tmp;
-  if (!cur)
-    return NULL;
-  tmp = cur;
-  cur = cur->next;
-  return tmp->p;
-}
-*/
 
 IpnElemStack::~IpnElemStack()
 {

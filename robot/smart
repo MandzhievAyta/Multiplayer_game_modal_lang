@@ -16,7 +16,7 @@ while ($i <= ?players()) {
   $i := $i + 1;
 };
 
-if (($amnt_products < ?demand()) | ?turn() == 1) {
+if (($amnt_products < ?demand()) | (?turn() == 1)) {
   sell ?production(?my_id()) ?production_price();
 } else {
   $counter := 0;
@@ -41,7 +41,7 @@ if (($amnt_products < ?demand()) | ?turn() == 1) {
   };
   if ($sold[0] > 0) {
     $count := 0;
-    sell ?production(?my_id()) (($sold[0] * ?production_price()) / 100);
+    sell ?production(?my_id()) ((($sold[0] * ?production_price()) / 100)-50);
   } else {
     sell ?production(?my_id()) (?production_price());
   };
@@ -76,7 +76,7 @@ if (?turn() == 1) {
     buy (?factories(?my_id()) - ?raw(?my_id())) ?raw_price();
   };
 };
-if (?money(?my_id()) > 100000) {
+if ((?money(?my_id()) > 70000) & (?factories(?my_id()) < 3)) {
   build 1;
 };
 $prev_prod_price := ?production_price();
