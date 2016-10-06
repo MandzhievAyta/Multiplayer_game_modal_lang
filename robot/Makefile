@@ -1,25 +1,29 @@
-SRCMODULES = lexemes.cpp lexanalyzer.cpp ipnclasses.cpp\
-             syntanalyzer.cpp interpreter.cpp
-OBJMODULES = $(SRCMODULES:.cpp=.o)
+OBJPATH = ./obj/
+INCPATH = ./inc/
+SRCPATH = ./src/
+SRCMODULES = $(SRCPATH)robot/lexemes.cpp $(SRCPATH)robot/lexanalyzer.cpp\
+             $(SRCPATH)robot/ipnclasses.cpp $(SRCPATH)robot/syntanalyzer.cpp\
+             $(SRCPATH)robot/interpreter.cpp
+OBJMODULES = $(OBJPATH)lexemes.o $(OBJPATH)lexanalyzer.o $(OBJPATH)ipnclasses.o\
+             $(OBJPATH)syntanalyzer.o $(OBJPATH)interpreter.o
+CC = gcc
 CXX = g++
-CXXFLAGS = -Wall -g
-PARAMETRS = "0 3333 stupid"
+CFLAGS = -Wall -g -I$(INCPATH)
+CXXFLAGS = -Wall -g -I$(INCPATH)
 
-%.o: %.cpp %.h
+$(OBJPATH)%.o: $(SRCPATH)robot/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-runrobot: robot.cpp $(OBJMODULES)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+all: $(SRCPATH)robot/robot.cpp $(SRCPATH)serv/myserver.c $(OBJMODULES)
+	$(CXX) $(CXXFLAGS) $(SRCPATH)robot/robot.cpp $(OBJMODULES) -o robot
+	$(CC) $(CFLAGS) $(SRCPATH)serv/myserver.c -o server
 
 ifneq (clean, $(MAKECMDGOALS))
 -include deps.mk
 endif
 
 deps.mk: $(SRCMODULES)
-	$(CXX) -MM $^ > $@
+	$(CXX) -I$(INCPATH) -MM $^ > $@
 
-run: runrobot
-	./runrobot $(PARAMETRS)
-
-clean: 
-	rm -f *.o runrobot deps.mk
+clean:
+	rm -f $(OBJPATH)*.o robot server deps.mk

@@ -335,7 +335,7 @@ void write_bought(struct banker *bank, struct sell_buy sell, int amnt)
 void new_game(struct banker *bank)
 {
   null_sell_buy(bank);
-  bank->mnth=0;
+  bank->mnth=-1;
   change_level(bank, third_level);
   bank->state=game_off;
 }
@@ -1003,6 +1003,10 @@ int main(int argc, char **argv)
   fd_set readfds;
   struct sockaddr_in addr;
   struct banker bank;
+  if (argc != 3) {
+    printf("Usage: ./server port_number amount_players\n");
+    return 1;
+  }
   bank_null(&bank,argv);
   ls=socket_err(&err);
   if (!err) setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));

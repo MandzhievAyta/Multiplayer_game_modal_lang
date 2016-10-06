@@ -355,6 +355,10 @@ int main(int argc, char **argv)
   InfoMarket market;
   ListOfIpnItem *ipn_list = NULL;
   ListOfVar list_var;
+  if (argc != 4) {
+    printf("Usage: ./robot server_ip port_number instruction_text\n");
+    return 1;
+  }
   sockfd = SocketErr();
   GameContext context(&ipn_list, &list_var, market, sockfd);
   Connection(sockfd, argv[1], argv[2]);

@@ -9,7 +9,7 @@
 int main(int argc, char **argv)
 {
   if (argc != 2) {
-    printf("Usage: ./runprogram input_file_name\n");
+    printf("Usage: ./interp_modal input_file_name\n");
     return 1;
   }
   Interpreter program;
